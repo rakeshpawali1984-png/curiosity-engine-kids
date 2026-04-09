@@ -42,13 +42,6 @@ export default function ExplanationScreen({ topic, onNext, onHome }) {
             </p>
           </div>
         </div>
-
-        {topic.wow && (
-          <div className="wow-line bg-purple-50 border-2 border-purple-200 rounded-2xl p-4 flex items-center gap-3">
-            <span className="text-2xl">🤯</span>
-            <p className="text-purple-800 font-bold text-base leading-snug">{topic.wow}</p>
-          </div>
-        )}
       </div>
 
       <button
