@@ -356,4 +356,243 @@ export const topics = [
     ],
     badge: "Gravity Guru 🌍",
   },
+  {
+    id: "sky-blue",
+    title: "Why is the sky blue?",
+    emoji: "🌤️",
+    story:
+      "Sam lay on the grass staring up at the sky. 'Why is it blue?' she asked her dad. 'Why not green? Or pink? The sun is yellow — so shouldn't everything just be yellow?' Her dad laughed. 'Great question! The sky is actually playing a colour trick on us — and light is the magician.'",
+    explanation:
+      "Sunlight looks white, but it is actually made of ALL the colours of the rainbow mixed together.\n\nWhen sunlight hits Earth's atmosphere, it bumps into tiny air particles. These particles scatter (bounce) light in all directions — but they scatter BLUE light the most because blue has shorter, bouncier waves.\n\nSo blue light bounces all across the sky and reaches your eyes from every direction. That's why the whole sky looks blue — not just near the sun!",
+    keyLesson: "Air scatters blue light the most — so the whole sky glows blue.",
+    wow: "Sunsets are red and orange because blue light scatters away — only red survives the long journey!",
+    activity: {
+      title: "Make a Sunset in a Glass 🌅",
+      steps: [
+        "Fill a clear glass with water",
+        "Add just a tiny drop of milk and stir gently",
+        "Take the glass somewhere dark",
+        "Shine a torch through the SIDE of the glass — the water looks bluish!",
+        "Now shine the torch through the END — it looks orange/red. That's a sunset!",
+      ],
+    },
+    quiz: [
+      {
+        type: "mcq",
+        question: "What is sunlight actually made of?",
+        options: [
+          "Only yellow light",
+          "All colours of the rainbow mixed",
+          "Blue and white light only",
+          "Heat and electricity",
+        ],
+        answer: 1,
+      },
+      {
+        type: "truefalse",
+        question: "Blue light bounces around in the atmosphere more than red light.",
+        answer: true,
+      },
+      {
+        type: "mcq",
+        question: "Why does the sky look blue and not green?",
+        options: [
+          "The ocean reflects onto the sky",
+          "Air particles scatter blue light the most",
+          "The sun produces only blue light",
+          "Blue paint was used long ago",
+        ],
+        answer: 1,
+      },
+      {
+        type: "truefalse",
+        question: "Sunsets are red because blue light gets scattered away on the longer path.",
+        answer: true,
+      },
+      {
+        type: "open",
+        question: "If Earth had no atmosphere, what colour do you think the sky would be?",
+        answer: "Black! Just like astronauts see from space — no air means no scattering, no blue sky.",
+      },
+    ],
+    badge: "Sky Scientist 🌤️",
+  },
+  {
+    id: "yawning",
+    title: "Why do we yawn — and why is it contagious?",
+    emoji: "🥱",
+    story:
+      "During a boring maths lesson, Tom yawned. Then Maya yawned. Then three more kids yawned. Then even the teacher yawned! Nobody was tired — so why did one yawn spread like a sneeze around the whole classroom? Tom decided this was actually way more interesting than maths.",
+    explanation:
+      "Scientists think yawning helps cool down your brain! When you yawn, you take in a big gulp of cooler air which helps your brain stay sharp.\n\nWe yawn more when we're tired or bored because our brain temperature rises — yawning is like a built-in fan!\n\nContagious yawning is even more interesting. When you see someone yawn, your brain's 'copy' system (called mirror neurons) kicks in — making YOU yawn too. It's a sign of empathy — people who care more about others tend to catch yawns more easily!",
+    keyLesson: "Yawning cools your brain — and catching a yawn shows you're empathetic!",
+    wow: "Even fish, snakes, and cats yawn — it's one of the oldest body functions in the animal kingdom!",
+    activity: {
+      title: "The Yawn Experiment 🥱",
+      steps: [
+        "Sit with a friend or family member",
+        "Try to yawn on purpose — open your mouth wide and breathe in slowly",
+        "Watch their face carefully — do they yawn too?",
+        "Now try this: just READ the word 'yawn' slowly... did it work on you?",
+        "Count how many people in your house yawn within 5 minutes of you starting!",
+      ],
+    },
+    quiz: [
+      {
+        type: "mcq",
+        question: "Scientists think yawning mainly helps to...",
+        options: [
+          "Fill your lungs with oxygen",
+          "Cool down your brain",
+          "Stretch your jaw muscles",
+          "Make you feel sleepy",
+        ],
+        answer: 1,
+      },
+      {
+        type: "truefalse",
+        question: "Yawning is contagious — seeing someone yawn can make you yawn too.",
+        answer: true,
+      },
+      {
+        type: "mcq",
+        question: "What brain system makes yawning contagious?",
+        options: [
+          "Memory neurons",
+          "Sleep neurons",
+          "Mirror neurons",
+          "Breathing neurons",
+        ],
+        answer: 2,
+      },
+      {
+        type: "truefalse",
+        question: "Only humans yawn — no other animals do it.",
+        answer: false,
+      },
+      {
+        type: "open",
+        question: "Did you yawn while reading this? Why do you think that happened?",
+        answer: "Yes, probably! Just thinking or reading about yawning activates mirror neurons — your brain is very good at copying!",
+      },
+    ],
+    badge: "Brain Cooler 🥱",
+  },
+  {
+    id: "magnets",
+    title: "How do magnets work?",
+    emoji: "🧲",
+    story:
+      "Anya stuck her drawings to the fridge with a magnet and wondered — how does this little thing hold paper without glue or tape? She tried sticking the magnet to a plastic cup. Nothing. To a coin. Nothing. To a paper clip. SNAP — it jumped! 'Why does it only grab some things?' she asked. 'Because,' said her mum, 'magnets speak a secret language that only certain materials understand.'",
+    explanation:
+      "Everything is made of tiny atoms. Inside some materials like iron, the atoms behave like tiny magnets — each one has a north and south end.\n\nIn most objects, these tiny atom-magnets point in random directions and cancel out. But in a real magnet, they all line up pointing the same way — and their combined force becomes powerful enough to feel!\n\nMagnets have two poles: North and South. Opposite poles (N-S) attract each other. Same poles (N-N or S-S) push each other away — this is called repulsion.",
+    keyLesson: "Magnets work because millions of tiny atom-magnets all point the same way.",
+    wow: "Earth itself is a giant magnet — that's why compass needles always point North!",
+    activity: {
+      title: "Magnet Detective Hunt 🔍",
+      steps: [
+        "Find any magnet at home (fridge magnet works perfectly)",
+        "Go around the room and test: coin, spoon, scissors, pencil, key, paper clip",
+        "Keep two lists: 'Magnetic' and 'Not magnetic'",
+        "What do all magnetic objects have in common? (Hint: what are they made of?)",
+        "Try pushing two fridge magnets together — feel the invisible pushing force!",
+      ],
+    },
+    quiz: [
+      {
+        type: "mcq",
+        question: "What makes a magnet different from regular metal?",
+        options: [
+          "It is heavier than normal metal",
+          "Its tiny atom-magnets all point the same way",
+          "It has been painted with a special colour",
+          "It is always cold",
+        ],
+        answer: 1,
+      },
+      {
+        type: "truefalse",
+        question: "Opposite poles of two magnets attract (pull towards) each other.",
+        answer: true,
+      },
+      {
+        type: "mcq",
+        question: "What happens when you put two North poles together?",
+        options: [
+          "They stick strongly",
+          "Nothing happens",
+          "They push each other away",
+          "One becomes South",
+        ],
+        answer: 2,
+      },
+      {
+        type: "truefalse",
+        question: "A magnet will stick to a plastic cup.",
+        answer: false,
+      },
+      {
+        type: "open",
+        question: "Name two things at home you found are magnetic and two that are not!",
+        answer: "Magnetic: iron spoon, scissors, keys, paperclips. Not magnetic: plastic, wood, glass, aluminium foil. Any correct examples are great!",
+      },
+    ],
+    badge: "Magnet Master 🧲",
+  },
+  {
+    id: "volcanoes",
+    title: "Why do volcanoes erupt?",
+    emoji: "🌋",
+    story:
+      "Ravi's class was watching a video of lava pouring down a mountain like a slow, glowing river. 'It looks like the Earth is bleeding!' said Ravi. His teacher smiled. 'In a way, it is. The Earth has been holding hot melted rock inside it for billions of years — and sometimes, it just can't hold it in anymore.'",
+    explanation:
+      "Deep inside Earth it is incredibly hot — hot enough to melt rock! This melted rock is called magma.\n\nMagma is lighter than solid rock, so it slowly pushes upward through cracks in Earth's crust, like squeezing toothpaste. When it finds a weak spot (a volcano), the pressure builds up until — BOOM — it bursts through!\n\nOnce magma reaches the surface, it's called lava. Lava can be as hot as 1,200°C — hot enough to melt glass. Over time, cooled lava builds up and forms the volcano's mountain shape.",
+    keyLesson: "Magma pushes up through Earth's crust — when pressure gets too high, a volcano erupts!",
+    wow: "There are over 1,500 active volcanoes on Earth — and about 20 are erupting right now!",
+    activity: {
+      title: "Kitchen Volcano! 🌋",
+      steps: [
+        "Put a small cup or bottle in the middle of a plate or tray",
+        "Add 2 tablespoons of baking soda into the cup",
+        "Add a few drops of dish soap and a drop of red food colouring (optional)",
+        "Pour in a splash of vinegar — stand back and watch!",
+        "The fizzing reaction is like gas pressure building up and bursting out — just like a real volcano!",
+      ],
+    },
+    quiz: [
+      {
+        type: "mcq",
+        question: "What is melted rock inside the Earth called?",
+        options: ["Lava", "Magma", "Steam", "Coal"],
+        answer: 1,
+      },
+      {
+        type: "truefalse",
+        question: "When magma reaches the surface of the Earth, it is called lava.",
+        answer: true,
+      },
+      {
+        type: "mcq",
+        question: "Why does magma push upward through the Earth's crust?",
+        options: [
+          "It is heavier than solid rock",
+          "It is lighter than solid rock",
+          "It is pulled up by the moon",
+          "Earthquakes push it up",
+        ],
+        answer: 1,
+      },
+      {
+        type: "truefalse",
+        question: "Volcanoes only exist on Earth — no other planets have them.",
+        answer: false,
+      },
+      {
+        type: "open",
+        question: "What happened in your kitchen volcano experiment — and why?",
+        answer: "The vinegar and baking soda react to make carbon dioxide gas very quickly — the pressure builds and pushes the liquid out, just like magma pressure in a real volcano!",
+      },
+    ],
+    badge: "Volcano Explorer 🌋",
+  },
 ];
