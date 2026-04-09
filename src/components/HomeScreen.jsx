@@ -33,14 +33,14 @@ export default function HomeScreen({ topics, pack, onPackChange, onSelect }) {
           ✨ Original Pack
         </button>
         <button
-          onClick={() => onPackChange("gpt")}
+          onClick={() => onPackChange("spark")}
           className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${
-            pack === "gpt"
+            pack === "spark"
               ? "bg-purple-500 text-white shadow"
               : "text-gray-400 hover:text-purple-500"
           }`}
         >
-          🤖 GPT Pack
+          ⚡ Spark Pack
         </button>
       </div>
 

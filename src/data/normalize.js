@@ -1,4 +1,4 @@
-// Maps topicsgpt.js schema → app's internal schema
+// Maps topics-spark.js schema → app's internal schema
 
 const EMOJI_MAP = {
   fat_energy: "🍔",
@@ -34,7 +34,7 @@ function normalizeQuestion(q) {
   };
 }
 
-export function normalizeTopicsGpt(rawTopics) {
+export function normalizeTopicsSpark(rawTopics) {
   return rawTopics.map((t) => ({
     id: t.id,
     title: t.title,

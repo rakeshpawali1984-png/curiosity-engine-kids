@@ -1,4 +1,4 @@
-export const topicsGptRaw = [
+export const topicsSparkRaw = [
   {
     "id": "fat_energy",
     "title": "Why do we get fat?",

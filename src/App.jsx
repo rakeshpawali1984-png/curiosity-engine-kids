@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { topics } from "./data/topics";
-import { topicsGptRaw } from "./data/topicsgpt.js";
-import { normalizeTopicsGpt } from "./data/normalize";
+import { topicsSparkRaw } from "./data/topics-spark.js";
+import { normalizeTopicsSpark } from "./data/normalize";
 import HomeScreen from "./components/HomeScreen";
 
-const topicsGpt = normalizeTopicsGpt(topicsGptRaw);
+const topicsSpark = normalizeTopicsSpark(topicsSparkRaw);
 import StoryScreen from "./components/StoryScreen";
 import ExplanationScreen from "./components/ExplanationScreen";
 import ActivityScreen from "./components/ActivityScreen";
@@ -14,9 +14,9 @@ import BadgeScreen from "./components/BadgeScreen";
 export default function App() {
   const [screen, setScreen] = useState("home");
   const [currentTopic, setCurrentTopic] = useState(null);
-  const [pack, setPack] = useState("original"); // "original" | "gpt"
+  const [pack, setPack] = useState("original"); // "original" | "spark"
 
-  const activePack = pack === "original" ? topics : topicsGpt;
+  const activePack = pack === "original" ? topics : topicsSpark;
 
   const selectTopic = (topic) => {
     setCurrentTopic(topic);
