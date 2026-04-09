@@ -1,4 +1,4 @@
-const STEPS = ["📖 Story", "🧠 Learn", "🎮 Activity", "❓ Quiz", "🏆 Badge"];
+const STEPS = ["📖 Story", "🧠 Learn", "🎮 Try", "🎯 Quiz", "🏆 Win"];
 
 export default function ProgressBar({ step }) {
   return (

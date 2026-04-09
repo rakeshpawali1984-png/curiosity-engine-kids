@@ -8,6 +8,7 @@ export const topics = [
     explanation:
       "Our bodies run on energy from food. When we eat MORE energy than we use, our body doesn't throw it away — it saves it as fat. Fat is like a backup battery.\n\nBut if we keep adding energy without using it, we store too much. Exercise, playing, and running all use up energy. The secret is balance: eat what you need, move your body every day!",
     keyLesson: "Fat = stored energy your body didn't use.",
+    wow: "Your body can store enough energy to survive for weeks without food!",
     activity: {
       title: "Energy Balance Game 🎮",
       steps: [
@@ -65,6 +66,7 @@ export const topics = [
     explanation:
       "Cricket bats are made from English Willow or Kashmir Willow. These special woods are:\n• Lightweight — easy to swing fast\n• Strong — won't crack easily\n• Springy — the ball bounces off powerfully, like a trampoline!\n\nWillow's special fiber structure absorbs the shock of a fast ball hitting the bat — protecting your hands too. Steel is too heavy. Plastic cracks. Only willow hits the sweet spot!",
     keyLesson: "Willow is the perfect balance of light, strong, and springy.",
+    wow: "Top cricket bat makers hand-press each bat over 1,000 times to make it stronger!",
     activity: {
       title: "Test Your Materials! 🔬",
       steps: [
@@ -123,6 +125,7 @@ export const topics = [
     explanation:
       "When you sleep, your brain is actually super busy! It is:\n• Sorting memories from the day\n• Practising skills you learned\n• Processing feelings and emotions\n\nDreams happen mostly during REM sleep (Rapid Eye Movement) — when your eyes move quickly under your eyelids. Scientists think dreams help your brain organise everything, like tidying a messy room. That's why you sometimes dream about school, games, or people you met!",
     keyLesson: "Dreams are your brain sorting and filing memories while you sleep.",
+    wow: "Your brain is MORE active during vivid dreams than when you watch TV!",
     activity: {
       title: "Dream Journal 📓",
       steps: [
@@ -185,6 +188,7 @@ export const topics = [
     explanation:
       "Rockets use Newton's Third Law of Motion: For every action, there is an equal and opposite reaction.\n\nWhen a rocket burns fuel, hot gases shoot DOWNWARD with massive force. The reaction pushes the rocket UPWARD.\n\nIf the upward push (called thrust) is BIGGER than gravity pulling down, the rocket rises! Just like a balloon — air rushes out one way, so the balloon flies the other way.",
     keyLesson: "Thrust pushes up. When thrust > gravity, the rocket goes up!",
+    wow: "A rocket burns as much fuel in 1 minute as a car uses in an entire year!",
     activity: {
       title: "Balloon Rocket Experiment 🎈",
       steps: [
@@ -242,6 +246,7 @@ export const topics = [
     explanation:
       "Space has NO air at all — it's a complete vacuum. Astronauts solve this in two ways:\n\n1. Space Suits: Built-in oxygen tanks provide air to breathe. The suit also removes the carbon dioxide you breathe out.\n\n2. Space Station (ISS): Machines called oxygen generators make fresh oxygen from water. Carbon dioxide is removed by special filters.\n\nThe ISS is like a self-contained bubble of Earth air, floating in space!",
     keyLesson: "Astronauts carry their air with them — in suits and space stations.",
+    wow: "The ISS makes fresh oxygen from water every single day — in space!",
     activity: {
       title: "Air Awareness Challenge 🌬️",
       steps: [
@@ -302,6 +307,7 @@ export const topics = [
       "Gravity IS everywhere in space — it's actually what keeps astronauts in orbit!\n\nHere's the secret: The ISS moves SO FAST sideways (28,000 km/h!) that as it falls toward Earth, the Earth curves away beneath it. They're in constant free-fall — but always missing the ground!\n\nAstronauts feel weightless because everything around them is falling at the same speed. It's like being inside a falling lift — if you drop a ball inside, it floats because you're both falling together!",
     keyLesson:
       "Astronauts ARE falling — but moving so fast sideways they keep missing Earth!",
+    wow: "The ISS travels at 28,000 km/h — that's 25 times faster than a passenger jet!",
     activity: {
       title: "Orbit in a Bucket! 🪣",
       steps: [

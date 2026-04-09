@@ -45,9 +45,9 @@ export default function QuizScreen({ topic, onComplete, onHome }) {
         </span>
         <span className="text-sm font-semibold text-purple-500">
           {question.type === "mcq"
-            ? "📋 Choose one"
+            ? "📋 Pick one"
             : question.type === "truefalse"
-            ? "✅ True or False"
+            ? "👍👎 True or False?"
             : "💬 Think & Share"}
         </span>
       </div>
@@ -144,10 +144,10 @@ export default function QuizScreen({ topic, onComplete, onHome }) {
             className={`mt-5 p-4 rounded-2xl text-center font-black text-lg ${
               isCorrect
                 ? "bg-green-100 text-green-600"
-                : "bg-red-100 text-red-500"
+                : "bg-orange-100 text-orange-500"
             }`}
           >
-            {isCorrect ? "🎉 Correct! Well done!" : "🤔 Not quite — keep going!"}
+            {isCorrect ? "🎉 Nice one!" : "Hmm… not quite — you've got this!"}
           </div>
         )}
         {showFeedback && question.type === "open" && (
@@ -161,9 +161,13 @@ export default function QuizScreen({ topic, onComplete, onHome }) {
       {showFeedback && (
         <button
           onClick={handleNext}
-          className="w-full bg-purple-500 hover:bg-purple-600 active:scale-95 text-white font-black py-5 rounded-2xl text-xl transition-all shadow-md"
+          className="w-full bg-purple-500 hover:bg-purple-600 hover:scale-105 active:scale-95 text-white font-black py-5 rounded-2xl text-xl transition-all shadow-md"
         >
-          {isLastQuestion ? "🏆 Get My Badge!" : "Next Question →"}
+          {isLastQuestion
+            ? "🏆 Get My Badge!"
+            : isCorrect
+            ? "Nice! Next →"
+            : "Keep going →"}
         </button>
       )}
     </div>

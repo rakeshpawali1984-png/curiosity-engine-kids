@@ -13,7 +13,7 @@ export default function ActivityScreen({ topic, onNext, onHome }) {
           <span className="text-3xl">🎮</span>
           <div>
             <p className="text-xs text-green-600 font-semibold uppercase tracking-wide">
-              Activity Time
+              🎮 Try this!
             </p>
             <h2 className="text-2xl font-black text-gray-800">
               {topic.activity.title}
@@ -42,7 +42,7 @@ export default function ActivityScreen({ topic, onNext, onHome }) {
 
       <button
         onClick={onNext}
-        className="w-full bg-green-500 hover:bg-green-600 active:scale-95 text-white font-bold py-5 rounded-2xl text-xl transition-all shadow-md"
+        className="w-full bg-green-500 hover:bg-green-600 hover:scale-105 active:scale-95 text-white font-bold py-5 rounded-2xl text-xl transition-all shadow-md"
       >
         I Tried It! ✅
       </button>

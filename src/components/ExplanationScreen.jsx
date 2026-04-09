@@ -16,7 +16,7 @@ export default function ExplanationScreen({ topic, onNext, onHome }) {
           <span className="text-3xl">🧠</span>
           <div>
             <p className="text-xs text-blue-500 font-semibold uppercase tracking-wide">
-              How It Works
+              🧠 How it works
             </p>
             <h2 className="text-xl font-black text-gray-800">Let&apos;s Learn!</h2>
           </div>
@@ -31,7 +31,7 @@ export default function ExplanationScreen({ topic, onNext, onHome }) {
         </div>
 
         {/* Key lesson callout */}
-        <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4 flex gap-3 items-start">
+        <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4 flex gap-3 items-start mb-4">
           <span className="text-2xl">💡</span>
           <div>
             <p className="text-xs text-blue-500 font-bold uppercase tracking-wide mb-1">
@@ -42,13 +42,20 @@ export default function ExplanationScreen({ topic, onNext, onHome }) {
             </p>
           </div>
         </div>
+
+        {topic.wow && (
+          <div className="wow-line bg-purple-50 border-2 border-purple-200 rounded-2xl p-4 flex items-center gap-3">
+            <span className="text-2xl">🤯</span>
+            <p className="text-purple-800 font-bold text-base leading-snug">{topic.wow}</p>
+          </div>
+        )}
       </div>
 
       <button
         onClick={onNext}
-        className="w-full bg-blue-500 hover:bg-blue-600 active:scale-95 text-white font-bold py-5 rounded-2xl text-xl transition-all shadow-md"
+        className="w-full bg-blue-500 hover:bg-blue-600 hover:scale-105 active:scale-95 text-white font-bold py-5 rounded-2xl text-xl transition-all shadow-md"
       >
-        Next →
+        Got it! →
       </button>
     </div>
   );

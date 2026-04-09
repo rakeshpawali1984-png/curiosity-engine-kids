@@ -4,17 +4,23 @@ export default function BadgeScreen({ topic, onHome }) {
       {/* Trophy animation */}
       <div className="text-8xl mb-4 animate-bounce">🏆</div>
 
-      <h1 className="text-3xl font-black text-purple-700 mb-2">
+      <p className="text-xs text-yellow-600 font-bold uppercase tracking-widest mb-1">
+        🏆 You unlocked!
+      </p>
+      <h1 className="text-3xl font-black text-purple-700 mb-1">
         You did it!
       </h1>
-      <p className="text-gray-500 text-lg mb-6 max-w-xs">
-        Awesome! You completed the whole {topic.title} adventure.
+      <p className="text-gray-500 text-lg mb-2 max-w-xs">
+        You discovered something awesome! 🌟
+      </p>
+      <p className="text-gray-400 text-sm mb-5 max-w-xs">
+        You completed the whole <span className="font-bold text-gray-500">{topic.title}</span> adventure.
       </p>
 
       {/* Badge */}
-      <div className="bg-gradient-to-r from-yellow-400 to-orange-400 text-white px-8 py-5 rounded-3xl shadow-xl mb-3">
+      <div className="animate-pop-in bg-gradient-to-r from-yellow-400 to-orange-400 text-white px-8 py-5 rounded-3xl shadow-xl mb-3">
         <p className="text-xs font-bold uppercase tracking-widest mb-1 opacity-80">
-          You unlocked
+          Your badge
         </p>
         <p className="text-2xl font-black">{topic.badge}</p>
       </div>
@@ -25,9 +31,9 @@ export default function BadgeScreen({ topic, onHome }) {
 
       <button
         onClick={onHome}
-        className="bg-purple-500 hover:bg-purple-600 active:scale-95 text-white font-black py-5 px-10 rounded-2xl text-xl transition-all shadow-md"
+        className="bg-purple-500 hover:bg-purple-600 hover:scale-105 active:scale-95 text-white font-black py-5 px-10 rounded-2xl text-xl transition-all shadow-md"
       >
-        🔍 Try Another Topic
+        Try another adventure 🚀
       </button>
     </div>
   );
