@@ -3,15 +3,24 @@ import { topics } from "./data/topics";
 import { topicsSparkRaw } from "./data/topics-spark.js";
 import { normalizeTopicsSpark } from "./data/normalize";
 import HomeScreen from "./components/HomeScreen";
-
-const topicsSpark = normalizeTopicsSpark(topicsSparkRaw);
 import StoryScreen from "./components/StoryScreen";
 import ExplanationScreen from "./components/ExplanationScreen";
 import ActivityScreen from "./components/ActivityScreen";
 import QuizScreen from "./components/QuizScreen";
 import BadgeScreen from "./components/BadgeScreen";
+import CuriousScreen from "./components/CuriousScreen";
+
+const topicsSpark = normalizeTopicsSpark(topicsSparkRaw);
 
 export default function App() {
+  // Secret hidden route — not linked anywhere in the main UI
+  if (window.location.pathname === "/get-curious") {
+    return <CuriousScreen />;
+  }
+  return <MainApp />;
+}
+
+function MainApp() {
   const [screen, setScreen] = useState("home");
   const [currentTopic, setCurrentTopic] = useState(null);
   const [pack, setPack] = useState("original"); // "original" | "spark"
