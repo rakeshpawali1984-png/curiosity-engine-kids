@@ -595,4 +595,428 @@ export const topics = [
     ],
     badge: "Volcano Explorer 🌋",
   },
+  {
+    id: "skin-healing",
+    title: "How does your skin heal itself?",
+    emoji: "🩹",
+    story:
+      "Priya was running in the garden when she tripped and scraped her knee. 'Ouch!' she cried. Her mum cleaned it up, and by the next morning there was a dark little scab. A week later — smooth new skin! 'Did magic happen?' Priya wondered. Her dad smiled. 'Better than magic,' he said. 'Your body has its own repair crew — and they work around the clock!'",
+    explanation:
+      "When you get a cut or scrape, your body launches an amazing rescue mission — in seconds!\n\n1. Bleeding stops: Tiny blood cells called platelets rush to the wound and clump together like a plug, forming a clot.\n2. A scab forms: The clot dries into a hard scab — a natural protective bandage.\n3. New skin grows: Underneath the scab, special cells called fibroblasts quietly build fresh skin tissue.\n4. Scab falls off: Once the new skin is ready, the scab drops away on its own.\n\nTop tip — never pick a scab! It is protecting the new skin being built underneath.",
+    keyLesson: "Your body heals cuts in four steps: clot → scab → new skin → done!",
+    wow: "Your body replaces its entire outer layer of skin every 2–4 weeks — you are constantly renewing yourself!",
+    activity: {
+      title: "The Healing Journal 📓",
+      steps: [
+        "Next time you get a small scrape, observe it carefully each day (ask an adult if you are unsure it is clean)",
+        "Draw or describe how it looks on Day 1, Day 3, and Day 5",
+        "Notice: when does the scab appear? When does it start shrinking?",
+        "Challenge yourself to never pick it — see if you can last the whole week!",
+        "On Day 7, write one sentence about what you noticed happening",
+      ],
+    },
+    quiz: [
+      {
+        type: "mcq",
+        question: "What is the very first thing your body does when you get a cut?",
+        options: [
+          "Immediately grows new skin",
+          "Forms a scab",
+          "Sends platelets to stop the bleeding",
+          "Makes the area itch",
+        ],
+        answer: 2,
+      },
+      {
+        type: "truefalse",
+        question: "A scab protects new skin that is growing underneath it.",
+        answer: true,
+      },
+      {
+        type: "mcq",
+        question: "What are platelets?",
+        options: [
+          "Brain cells",
+          "Tiny blood cells that help form clots",
+          "A type of bone",
+          "Cells that only fight germs",
+        ],
+        answer: 1,
+      },
+      {
+        type: "truefalse",
+        question: "You should always pick a scab off quickly to help it heal faster.",
+        answer: false,
+      },
+      {
+        type: "open",
+        question: "Why do you think it is so important that your body can heal itself?",
+        answer:
+          "Any thoughtful answer is great — e.g. so we recover from injuries without always needing medicine, to protect us from infection, because we can't avoid every bump and scrape!",
+      },
+    ],
+    badge: "Body Repair Expert 🩹",
+  },
+  {
+    id: "headaches",
+    title: "Why do we get headaches?",
+    emoji: "🤕",
+    story:
+      "Ravi had been staring at his tablet for three hours straight. Suddenly a dull throbbing crept across his forehead. 'Mum, my brain hurts!' he groaned. His mum raised an eyebrow. 'Interesting — because your brain actually cannot feel pain at all!' Ravi stared at her. 'Then what IS hurting?' Mum smiled. 'Now that is a brilliant question.'",
+    explanation:
+      "Here is the surprising truth: your brain has NO pain receptors! So headaches are not your brain hurting.\n\nHeadaches happen because of the tissues AROUND your brain — muscles, blood vessels, and nerves in your head and neck. Common causes:\n\n• Dehydration: When you don't drink enough water, blood flow changes and triggers pain signals\n• Eye strain: Staring at screens for too long tires your eye muscles\n• Tension: Stress or bad posture tightens neck and scalp muscles\n• Skipping meals: Low blood sugar can set off a headache\n\nThe cure? Drink water, rest in a quiet spot, get fresh air, and take breaks from screens!",
+    keyLesson: "The brain cannot feel pain — headaches come from surrounding muscles, nerves, and blood vessels.",
+    wow: "Doctors have identified more than 150 different types of headaches — the most common is called a tension headache!",
+    activity: {
+      title: "Headache Detective 🔍",
+      steps: [
+        "Keep a simple headache log for one week in a notebook",
+        "Each day, jot down: how much water you drank, how long you used a screen, and whether you skipped any meals",
+        "If you got a headache, note when it happened and what you were doing",
+        "At the end of the week, look for patterns — what might be triggering headaches for you?",
+        "Try the 20-20-20 rule: every 20 minutes, look at something 20 feet away for 20 seconds!",
+      ],
+    },
+    quiz: [
+      {
+        type: "truefalse",
+        question: "Your brain itself can feel pain.",
+        answer: false,
+      },
+      {
+        type: "mcq",
+        question: "Which of these is a common cause of headaches?",
+        options: [
+          "Eating too much fruit",
+          "Not drinking enough water",
+          "Reading books for fun",
+          "Getting enough sleep",
+        ],
+        answer: 1,
+      },
+      {
+        type: "mcq",
+        question: "What is the most common type of headache?",
+        options: [
+          "Migraine",
+          "Tension headache",
+          "Cluster headache",
+          "Hunger headache",
+        ],
+        answer: 1,
+      },
+      {
+        type: "truefalse",
+        question: "Taking regular breaks from screens can help prevent headaches.",
+        answer: true,
+      },
+      {
+        type: "open",
+        question: "What is ONE change you could make in your day to help prevent headaches?",
+        answer:
+          "Great answers include: drink more water, take screen breaks, eat regular meals, go outside for fresh air, sit up straight!",
+      },
+    ],
+    badge: "Brain Care Champion 🧠",
+  },
+  {
+    id: "tennis-balls",
+    title: "How are tennis balls made?",
+    emoji: "🎾",
+    story:
+      "Meera was watching a tennis match on TV, mesmerised by the bright yellow-green ball bouncing perfectly every single time. 'How does it bounce so exactly right?' she wondered. 'A flat ball flops, a hard ball is dangerous — but this one is just perfect!' She picked up an old tennis ball and turned it over in her hands, determined to find out its secret.",
+    explanation:
+      "A tennis ball is a tiny engineering masterpiece!\n\nThe core: Two rubber half-shells are moulded and joined together. Pressurised gas is then sealed inside — this internal pressure is exactly what gives the ball its perfect bounce.\n\nThe felt: A fuzzy fabric made of nylon and wool is glued around the rubber core in two curved pieces shaped like a figure-8. The felt slows the ball slightly through the air, giving players much better control.\n\nThe seam: The two felt pieces meet in a raised seam you can feel all the way around the ball.\n\nWhy yellow-green? Scientists found this colour is the easiest for both players and TV viewers to track at high speed!",
+    keyLesson: "A tennis ball bounces perfectly because of pressurised gas sealed inside a rubber core, wrapped in felt for control.",
+    wow: "A tennis ball is only at its best for about 9 games — after that the internal pressure drops and it bounces lower!",
+    activity: {
+      title: "The Great Bounce Test 🏀",
+      steps: [
+        "Collect 3 different balls — a tennis ball, a rubber bouncy ball, and a soft sponge ball",
+        "Drop each one from the SAME height (about waist height) onto a hard floor",
+        "Estimate or measure how high each one bounces back",
+        "Record your results — which bounced highest? Which gave the most control?",
+        "Squeeze each ball — can you feel the difference in how firm they are?",
+      ],
+    },
+    quiz: [
+      {
+        type: "mcq",
+        question: "What gives a tennis ball its great bounce?",
+        options: [
+          "A spring inside",
+          "Pressurised gas sealed in a rubber core",
+          "A heavy metal weight in the centre",
+          "A very thick rubber wall",
+        ],
+        answer: 1,
+      },
+      {
+        type: "truefalse",
+        question: "The felt on a tennis ball helps players control it in the air.",
+        answer: true,
+      },
+      {
+        type: "mcq",
+        question: "Why is a tennis ball yellow-green?",
+        options: [
+          "It is the cheapest colour dye",
+          "It looks good on grass courts",
+          "It is the easiest colour to see at high speed",
+          "Rules say it must match the court colour",
+        ],
+        answer: 2,
+      },
+      {
+        type: "truefalse",
+        question: "A tennis ball stays perfectly bouncy forever without losing pressure.",
+        answer: false,
+      },
+      {
+        type: "open",
+        question: "Think of another sports ball — what do you think makes it bounce or fly the way it does?",
+        answer:
+          "Creative answers welcome! Cricket ball — cork core + leather. Football — inflated rubber bladder inside. Ping pong ball — hollow thin plastic with air trapped inside.",
+      },
+    ],
+    badge: "Sports Scientist 🎾",
+  },
+  {
+    id: "lab-diamonds",
+    title: "How are lab-grown diamonds made?",
+    emoji: "💎",
+    story:
+      "Anika spotted her mum's diamond ring sparkling in the sunlight. 'Diamonds come from deep underground, right?' she said. Her mum nodded. 'That is true — but this ring was actually grown in a laboratory in just a few weeks.' Anika nearly dropped her toast. 'You can GROW a diamond?!' she gasped. 'Like a plant?!' Her mum laughed. 'Well... sort of!'",
+    explanation:
+      "Natural diamonds take billions of years to form deep underground, under enormous heat and pressure. Scientists figured out how to copy that exact process in a lab — in just weeks!\n\nMethod 1 — HPHT (High Pressure, High Temperature): A tiny diamond called a 'seed' is placed inside carbon and squeezed under enormous pressure (imagine 1.5 million kilograms pressing on your thumbnail!) at extreme heat. Carbon atoms slowly attach to the seed and a bigger diamond grows.\n\nMethod 2 — CVD (Chemical Vapour Deposition): A diamond seed sits inside a chamber filled with carbon-rich gas. Energy zaps the gas, and carbon atoms rain down onto the seed layer by layer — like building a tower one brick at a time.\n\nThe result? A real, genuine diamond — chemically and physically identical to one dug from the ground!",
+    keyLesson: "Lab-grown diamonds are 100% real diamonds, created by copying the same process that happens deep underground.",
+    wow: "Lab-grown diamonds are so identical to mined diamonds that even expert gemologists need special equipment to tell them apart!",
+    activity: {
+      title: "Grow Your Own Crystals! 💎",
+      steps: [
+        "Ask an adult to help — dissolve as much table salt or sugar as possible into a cup of warm water, stirring until no more will dissolve",
+        "Tie a small piece of rough string or thread to a pencil and dangle it into the solution without touching the bottom",
+        "Place the cup somewhere undisturbed and leave it for 3–5 days",
+        "Check each day and watch crystals slowly grow on the string!",
+        "This is similar (but much simpler!) to how diamonds grow — atoms arranging themselves into a beautiful crystal pattern",
+      ],
+    },
+    quiz: [
+      {
+        type: "mcq",
+        question: "How long does it take to grow a diamond in a lab?",
+        options: ["Billions of years", "A few weeks", "One day", "About 100 years"],
+        answer: 1,
+      },
+      {
+        type: "truefalse",
+        question: "Lab-grown diamonds are fake and made of plastic.",
+        answer: false,
+      },
+      {
+        type: "mcq",
+        question: "In the HPHT method, what is the starting point for growing a diamond?",
+        options: [
+          "A grain of sugar",
+          "A tiny diamond seed placed in carbon",
+          "A piece of glass heated up",
+          "A metal pellet",
+        ],
+        answer: 1,
+      },
+      {
+        type: "truefalse",
+        question: "Natural diamonds take billions of years to form deep underground.",
+        answer: true,
+      },
+      {
+        type: "open",
+        question: "Why might growing diamonds in a lab be better for the environment than mining them from the ground?",
+        answer:
+          "Great answers: no digging up land, less environmental damage, safer for workers, less water and energy used in extraction — all correct!",
+      },
+    ],
+    badge: "Crystal Creator 💎",
+  },
+  {
+    id: "inflation",
+    title: "Why does everything keep getting more expensive?",
+    emoji: "💸",
+    story:
+      "Grandpa was telling Neel about the old days. 'When I was your age, a movie ticket cost just two rupees!' he said. Neel's jaw dropped. 'TWO rupees?! Today it costs 200!' Grandpa smiled. 'That, my boy, is called inflation.' Neel frowned. 'But WHY does it happen? Who decides to make everything more expensive?'",
+    explanation:
+      "Inflation is when prices of things slowly rise over time — and it happens for some very logical reasons.\n\nThink of it like this: Imagine your school canteen has 10 students and only 5 samosas. Everyone wants one, so the price goes up! Now imagine 100 samosas and only 5 students — prices drop.\n\nReal causes of inflation:\n• More money, same goods: When more money flows around an economy but there are not more products to buy, prices rise\n• Supply problems: If goods become harder to make or transport (like during a pandemic), prices shoot up\n• Higher wages: When workers earn more, businesses charge more to cover their higher costs\n\nA small amount of inflation — around 2% per year — is actually healthy. It means the economy is growing. But too much inflation hurts everyone, especially people on fixed incomes!",
+    keyLesson: "Inflation happens when the amount of money grows faster than the goods and services available to buy.",
+    wow: "In 1923, Germany had 'hyperinflation' so extreme that people needed wheelbarrows full of banknotes just to buy a loaf of bread!",
+    activity: {
+      title: "Price Detective 🔍",
+      steps: [
+        "Ask a parent or grandparent: 'What did a litre of milk, a movie ticket, or a bus ride cost when you were young?'",
+        "Find out what that same thing costs today",
+        "Work out: how many times more expensive is it now compared to then?",
+        "Make a simple 'Then vs Now' chart on paper with the numbers",
+        "Think about this: if your pocket money stays the same while prices keep rising, what happens to how much you can actually buy?",
+      ],
+    },
+    quiz: [
+      {
+        type: "mcq",
+        question: "What is inflation?",
+        options: [
+          "When prices go down over time",
+          "When prices go up over time",
+          "When the government prints less money",
+          "When shops have a sale",
+        ],
+        answer: 1,
+      },
+      {
+        type: "truefalse",
+        question: "A small, steady amount of inflation is normal and healthy for an economy.",
+        answer: true,
+      },
+      {
+        type: "mcq",
+        question: "If there are MORE goods available but the SAME amount of money, what usually happens to prices?",
+        options: ["Prices go up", "Prices go down", "Prices stay exactly the same", "Prices double overnight"],
+        answer: 1,
+      },
+      {
+        type: "truefalse",
+        question: "Inflation only affects very wealthy people — ordinary families are not impacted.",
+        answer: false,
+      },
+      {
+        type: "open",
+        question: "If your pocket money is ₹100 and prices double because of inflation, how does that change what you can buy?",
+        answer:
+          "You can only buy HALF of what you could before — inflation reduces the real value of money even if the amount stays the same!",
+      },
+    ],
+    badge: "Economics Explorer 💸",
+  },
+  {
+    id: "six-seven-meme",
+    title: "Why is the '7 ate 9' joke so funny?",
+    emoji: "😂",
+    story:
+      "One day Kabir's teacher asked a riddle: 'Why is 6 afraid of 7?' The class looked puzzled. The teacher grinned. 'Because 7... 8... 9!' Half the class groaned. The other half burst out laughing. Kabir laughed too — then stopped. 'Wait, why did I laugh? It's just numbers pretending to eat each other. That doesn't even make sense!' And that, surprisingly, is EXACTLY why it is funny.",
+    explanation:
+      "The joke works because of a PUN — a word that has two meanings at the same time.\n\n'8' sounds exactly like 'ate' (past tense of eat). So '7 8 9' can mean '7 ate 9' — as if numbers were hungry creatures chomping each other!\n\nHere is what your brain does when it hears a pun:\n1. It expects a normal, logical answer\n2. It suddenly gets a totally unexpected, silly twist\n3. That surprise gap between 'expected' and 'actual' creates laughter!\n\nScientists call this the 'Incongruity Theory of Humour' — our brain finds funny things surprising and a little absurd.\n\nPuns are one of the oldest forms of human humour. The Ancient Egyptians wrote puns on tomb walls — so people have been groaning at bad jokes for thousands of years!",
+    keyLesson: "Puns are funny because they trick your brain with a surprise twist using words that sound the same but mean different things.",
+    wow: "The '7 ate 9' joke is one of the most recognised jokes in the English-speaking world — it has been told by millions of kids for over 50 years!",
+    activity: {
+      title: "Pun Factory 😄",
+      steps: [
+        "A pun uses a word with TWO meanings. Try to spot the pun: 'I used to be a banker, but I lost interest.'",
+        "Now try making your own! Pick any word that sounds like another word (e.g. 'bear / bare', 'knight / night', 'sun / son')",
+        "Write a short one-liner joke using your word",
+        "Test it on a family member — did they groan or laugh? (A groan means it worked perfectly!)",
+        "Challenge: Can you write a maths pun, a food pun, and an animal pun?",
+      ],
+    },
+    quiz: [
+      {
+        type: "mcq",
+        question: "Why does the '7 ate 9' joke work?",
+        options: [
+          "Because 7 is a scary number",
+          "Because '8' sounds the same as 'ate' — a pun",
+          "Because 9 is smaller than 7",
+          "Because it involves subtraction",
+        ],
+        answer: 1,
+      },
+      {
+        type: "truefalse",
+        question: "A pun uses a word that has two different meanings or sounds like another word.",
+        answer: true,
+      },
+      {
+        type: "mcq",
+        question: "According to the Incongruity Theory, why do we laugh?",
+        options: [
+          "Because we hear a loud sound",
+          "Because our brain gets a surprising, unexpected twist",
+          "Because jokes are always true",
+          "Because laughing is a reflex, like sneezing",
+        ],
+        answer: 1,
+      },
+      {
+        type: "truefalse",
+        question: "Puns are a modern invention — ancient people never used wordplay.",
+        answer: false,
+      },
+      {
+        type: "open",
+        question: "Make up your OWN one-liner pun joke and write it here!",
+        answer:
+          "Any pun attempt is a winner! e.g. 'I am reading a book about anti-gravity — it is impossible to put down!' or 'Time flies like an arrow; fruit flies like a banana.'",
+      },
+    ],
+    badge: "Pun Master 😂",
+  },
+  {
+    id: "67-meme",
+    title: "Why does the '67' meme make no sense — and why is that the point?",
+    emoji: "6️⃣7️⃣",
+    story:
+      "Aryan walked into class one morning and said absolutely nothing except '67' to his friend Diya. Diya immediately burst out laughing. Their teacher stared at them, completely confused. 'What does 67 mean?' the teacher asked. The two kids looked at each other and laughed even harder. Later, Diya tried to explain it to her mum — but the more she tried, the funnier it got. 'I don't get it,' said Mum. Diya grinned. 'That's the whole point.'",
+    explanation:
+      "The '67' meme spread like wildfire across TikTok and Instagram Reels in 2025 — among kids! Its superpower? It means absolutely nothing.\n\nThis is what internet culture calls 'brainrot' — deliberately silly, random, and absurd content that makes no logical sense. And scientists say there are real reasons why humans find this funny:\n\n• Absurdist humour: When something is so random it breaks all expectations, our brain finds the confusion funny\n• In-group signalling: Knowing a meme creates a secret bond — 'I get it, you get it, adults don't' — which feels great!\n• Confusing adults: There is a special joy in having a reference that older people simply cannot Google their way into understanding\n• Virality through mystery: People share things they cannot explain because others want to know what it means\n\nMemes like '67' show how modern kids create their OWN language, culture, and humour — completely separate from adults.",
+    keyLesson: "Brainrot memes spread because absurd, unexplainable things create a fun sense of mystery and belonging between friends.",
+    wow: "Linguists — scientists who study language — are now officially studying Gen Alpha internet slang like 'brainrot', 'rizz', and 'no cap' as a real evolving language!",
+    activity: {
+      title: "Invent Your OWN Meme! 🎨",
+      steps: [
+        "Think of a completely random word, number, or phrase — the more meaningless, the better",
+        "Use it in a sentence with a friend and see if they laugh just from the randomness",
+        "Draw a simple image or comic panel that uses your new meme",
+        "Challenge: tell it to a parent or teacher and see if they understand it (they probably won't — that's the goal!)",
+        "Discuss: what do you think makes something go viral? Write down 3 ingredients of a perfect meme",
+      ],
+    },
+    quiz: [
+      {
+        type: "mcq",
+        question: "What does 'brainrot' mean in internet culture?",
+        options: [
+          "Educational content that teaches maths",
+          "Memes or content that is deliberately silly, random, and makes no logical sense",
+          "Scary or dangerous videos",
+          "Long boring lectures posted online",
+        ],
+        answer: 1,
+      },
+      {
+        type: "truefalse",
+        question: "The '67' meme is funny because of its deep, hidden meaning that takes effort to understand.",
+        answer: false,
+      },
+      {
+        type: "mcq",
+        question: "What is 'in-group signalling' in meme culture?",
+        options: [
+          "Posting a meme inside a group chat",
+          "When sharing a reference creates a bond between people who 'get it'",
+          "When you tag friends in a video",
+          "Reporting a post to moderators",
+        ],
+        answer: 1,
+      },
+      {
+        type: "truefalse",
+        question: "Scientists who study language are taking Gen Alpha internet slang seriously as a real evolving language.",
+        answer: true,
+      },
+      {
+        type: "open",
+        question: "Invent your own brainrot meme word or phrase right now — and explain why you think it would go viral!",
+        answer:
+          "All creative answers win! The best ones are short, weird, repeatable, and impossible to explain — just like the real thing.",
+      },
+    ],
+    badge: "Meme Scholar 🧠",
+  },
 ];
