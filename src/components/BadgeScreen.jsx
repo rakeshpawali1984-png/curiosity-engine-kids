@@ -42,7 +42,7 @@ export default function BadgeScreen({ topic, onHome }) {
 
       <button
         onClick={onHome}
-        className="bg-purple-500 hover:bg-purple-600 hover:scale-105 active:scale-95 text-white font-black py-5 px-10 rounded-2xl text-xl transition-all shadow-md"
+        className="bg-purple-500 hover:bg-purple-600 hover:scale-105 active:scale-95 text-white font-black py-6 px-10 rounded-2xl text-xl transition-all shadow-md"
       >
         Try another adventure 🚀
       </button>

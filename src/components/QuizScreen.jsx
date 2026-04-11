@@ -39,7 +39,7 @@ export default function QuizScreen({ topic, onComplete, onHome }) {
       <ProgressBar step={4} />
 
       {/* Question counter */}
-      <div className="flex justify-between items-center mb-4 px-1">
+      <div className="flex flex-wrap justify-between items-center gap-1 mb-4 px-1">
         <span className="text-base font-bold text-gray-500">
           Question {index + 1} of {topic.quiz.length}
         </span>
@@ -53,7 +53,7 @@ export default function QuizScreen({ topic, onComplete, onHome }) {
       </div>
 
       <div className="bg-white rounded-3xl shadow-lg p-6 mb-4">
-        <p className="text-xl font-bold text-gray-800 mb-6 leading-snug">
+        <p className="text-xl font-bold text-gray-800 mb-6 leading-snug break-words hyphens-auto">
           {question.question}
         </p>
 
@@ -62,7 +62,7 @@ export default function QuizScreen({ topic, onComplete, onHome }) {
           <div className="space-y-3">
             {question.options.map((option, i) => {
               let cls =
-                "w-full text-left p-4 rounded-2xl text-base font-semibold border-2 transition-all ";
+                "w-full text-left py-4 px-4 rounded-2xl text-base font-semibold border-2 transition-all ";
               if (!showFeedback) {
                 cls += "border-gray-200 hover:border-purple-400 hover:bg-purple-50 active:scale-95";
               } else if (i === question.answer) {
@@ -91,7 +91,7 @@ export default function QuizScreen({ topic, onComplete, onHome }) {
           <div className="flex gap-4">
             {[true, false].map((val) => {
               let cls =
-                "flex-1 py-5 rounded-2xl text-lg font-black border-2 transition-all ";
+                "flex-1 py-6 rounded-2xl text-lg font-black border-2 transition-all ";
               if (!showFeedback) {
                 cls += "border-gray-200 hover:border-purple-400 hover:bg-purple-50 active:scale-95";
               } else if (val === question.answer) {
@@ -161,7 +161,7 @@ export default function QuizScreen({ topic, onComplete, onHome }) {
       {showFeedback && (
         <button
           onClick={handleNext}
-          className="w-full bg-purple-500 hover:bg-purple-600 hover:scale-105 active:scale-95 text-white font-black py-5 rounded-2xl text-xl transition-all shadow-md"
+          className="w-full bg-purple-500 hover:bg-purple-600 hover:scale-105 active:scale-95 text-white font-black py-6 rounded-2xl text-xl transition-all shadow-md"
         >
           {isLastQuestion
             ? "🏆 Get My Badge!"

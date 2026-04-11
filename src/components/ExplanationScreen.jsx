@@ -24,7 +24,7 @@ export default function ExplanationScreen({ topic, onNext, onHome }) {
 
         <div className="space-y-3 mb-5">
           {paragraphs.map((para, i) => (
-            <p key={i} className="text-gray-700 text-lg leading-relaxed">
+            <p key={i} className="text-gray-700 text-lg leading-relaxed break-words hyphens-auto">
               {para}
             </p>
           ))}
@@ -46,7 +46,7 @@ export default function ExplanationScreen({ topic, onNext, onHome }) {
 
       <button
         onClick={onNext}
-        className="w-full bg-blue-500 hover:bg-blue-600 hover:scale-105 active:scale-95 text-white font-bold py-5 rounded-2xl text-xl transition-all shadow-md"
+        className="w-full bg-blue-500 hover:bg-blue-600 hover:scale-105 active:scale-95 text-white font-bold py-6 rounded-2xl text-xl transition-all shadow-md"
       >
         Got it! →
       </button>

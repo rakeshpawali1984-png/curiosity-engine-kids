@@ -31,10 +31,10 @@ export default function ActivityScreen({ topic, onNext, onHome }) {
               key={i}
               className="flex items-start gap-4 bg-green-50 rounded-2xl p-4 border border-green-100"
             >
-              <div className="w-8 h-8 rounded-full bg-green-400 text-white font-black flex items-center justify-center text-sm flex-shrink-0 mt-0.5">
+              <div className="w-10 h-10 rounded-full bg-green-400 text-white font-black flex items-center justify-center text-sm flex-shrink-0 mt-0.5">
                 {i + 1}
               </div>
-              <p className="text-gray-700 text-lg leading-snug">{step}</p>
+              <p className="text-gray-700 text-lg leading-snug break-words hyphens-auto">{step}</p>
             </div>
           ))}
         </div>
@@ -42,7 +42,7 @@ export default function ActivityScreen({ topic, onNext, onHome }) {
 
       <button
         onClick={onNext}
-        className="w-full bg-green-500 hover:bg-green-600 hover:scale-105 active:scale-95 text-white font-bold py-5 rounded-2xl text-xl transition-all shadow-md"
+        className="w-full bg-green-500 hover:bg-green-600 hover:scale-105 active:scale-95 text-white font-bold py-6 rounded-2xl text-xl transition-all shadow-md"
       >
         I Tried It! ✅
       </button>

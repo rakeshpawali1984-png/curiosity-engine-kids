@@ -22,7 +22,7 @@ export default function StoryScreen({ topic, onNext, onHome }) {
         </div>
 
         <div className="bg-amber-50 rounded-2xl p-5 border border-amber-100 mb-4">
-          <p className="text-gray-700 text-lg leading-relaxed">{topic.story}</p>
+          <p className="text-gray-700 text-lg leading-relaxed break-words hyphens-auto">{topic.story}</p>
         </div>
 
         {topic.wow && (
@@ -35,7 +35,7 @@ export default function StoryScreen({ topic, onNext, onHome }) {
 
       <button
         onClick={onNext}
-        className="w-full bg-purple-500 hover:bg-purple-600 hover:scale-105 active:scale-95 text-white font-bold py-5 rounded-2xl text-xl transition-all shadow-md"
+        className="w-full bg-purple-500 hover:bg-purple-600 hover:scale-105 active:scale-95 text-white font-bold py-6 rounded-2xl text-xl transition-all shadow-md"
       >
         Let&apos;s find out! →
       </button>

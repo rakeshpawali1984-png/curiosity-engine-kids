@@ -682,15 +682,17 @@ export default function CuriousScreen() {
 
         {/* Header */}
         <div className="text-center mb-6 mt-4">
-          <h1 className="text-4xl font-black text-purple-700 mb-2">The Wonder Engine 🔭</h1>
+          <h1 className="text-4xl font-black text-purple-700 mb-2">
+            <span className="inline-block animate-bounce">🔭</span> The Wonder Engine
+          </h1>
           <p className="text-gray-500 text-lg">Ask anything and go on an adventure!</p>
         </div>
 
         {/* Input card — always visible unless loading */}
         {screen === "ask" && (
-          <div className="bg-white rounded-3xl shadow-lg p-5 mb-5">
+          <div className="bg-white rounded-3xl shadow-lg p-5 mb-5 border-2 border-purple-100">
             <textarea
-              className="w-full border-2 border-gray-200 focus:border-purple-400 rounded-2xl p-4 text-base text-gray-800 resize-none outline-none transition-colors"
+              className="w-full border-2 border-purple-100 focus:border-purple-400 bg-purple-50 focus:bg-white rounded-2xl p-4 text-base text-gray-800 resize-none outline-none transition-all"
               rows={3}
               placeholder="What are you curious about? e.g. Why is the ocean salty?"
               maxLength={MAX_INPUT_LENGTH}
@@ -714,10 +716,40 @@ export default function CuriousScreen() {
             <button
               onClick={handleSubmit}
               disabled={!input.trim()}
-              className="w-full bg-purple-500 hover:bg-purple-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-black py-5 rounded-2xl text-xl transition-all hover:scale-105 active:scale-95 shadow-md"
+              className={`w-full text-white font-black py-5 rounded-2xl text-xl transition-all hover:scale-105 active:scale-95 shadow-md ${
+                input.trim()
+                  ? "bg-purple-500 hover:bg-purple-600"
+                  : "bg-purple-300 animate-pulse cursor-not-allowed"
+              }`}
             >
               Explore →
             </button>
+          </div>
+        )}
+
+        {/* Inspiration chips — only shown on ask screen */}
+        {screen === "ask" && (
+          <div className="mb-6">
+            <p className="text-center text-xs font-bold text-purple-400 uppercase tracking-widest mb-3">✨ Try one of these</p>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {[
+                { emoji: "🦕", label: "Dinosaurs",      q: "Why did dinosaurs go extinct?" },
+                { emoji: "🌊", label: "Ocean",           q: "Why is the ocean salty?" },
+                { emoji: "⚡", label: "Lightning",       q: "How does lightning work?" },
+                { emoji: "🧠", label: "Memory",          q: "How does our brain remember things?" },
+                { emoji: "🌙", label: "The Moon",        q: "Why does the moon change shape?" },
+                { emoji: "🦋", label: "Butterflies",     q: "How does a caterpillar turn into a butterfly?" },
+              ].map(({ emoji, label, q }) => (
+                <button
+                  key={q}
+                  onClick={() => { setInput(q); }}
+                  className="flex items-center gap-1.5 bg-white hover:bg-purple-50 border-2 border-purple-100 hover:border-purple-300 text-gray-700 font-semibold text-sm px-3 py-2 rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-sm"
+                >
+                  <span>{emoji}</span>
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
