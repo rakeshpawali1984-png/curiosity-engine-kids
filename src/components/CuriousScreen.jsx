@@ -218,15 +218,23 @@ Return ONLY valid JSON in the EXACT same format as the input — no markdown, no
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const OPENAI_PROXY = "/api/spark";
+const OPENAI_DIRECT = "https://api.openai.com/v1/chat/completions";
+const LOCAL_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
+const IS_DEV = import.meta.env.DEV;
 
 async function callOpenAI(systemPrompt, userContent, temperature = 0.7, model = "gpt-4.1-mini", jsonMode = false) {
   const label = `[WonderEngine] ${model}`;
   const t0 = performance.now();
   console.log(`${label} → request start (temp=${temperature}, promptChars=${systemPrompt.length}, userChars=${userContent.length})`);
 
-  const res = await fetch(OPENAI_PROXY, {
+  const url = IS_DEV ? OPENAI_DIRECT : OPENAI_PROXY;
+  const headers = IS_DEV
+    ? { "Content-Type": "application/json", "Authorization": `Bearer ${LOCAL_API_KEY}` }
+    : { "Content-Type": "application/json" };
+
+  const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({
       model,
       ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
@@ -695,8 +703,13 @@ export default function CuriousScreen() {
                 }
               }}
             />
-            <div className="flex justify-end mt-1 mb-3 px-1">
-              <span className="text-xs text-gray-400">{input.length}/{MAX_INPUT_LENGTH}</span>
+            <div className="flex justify-between items-center mt-1 mb-3 px-1 min-h-[1.25rem]">
+              {input.trim().split(/\s+/).filter(Boolean).length > 0 && input.trim().split(/\s+/).filter(Boolean).length < 3 ? (
+                <span className="text-xs text-amber-500 font-semibold">💡 Try a full question — e.g. <em>Why do we need food?</em></span>
+              ) : (
+                <span />
+              )}
+              <span className="text-xs text-gray-400 shrink-0 ml-2">{input.length}/{MAX_INPUT_LENGTH}</span>
             </div>
             <button
               onClick={handleSubmit}

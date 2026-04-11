@@ -1,4 +1,15 @@
+import { useEffect } from "react";
+import confetti from "canvas-confetti";
+
 export default function BadgeScreen({ topic, onHome }) {
+  useEffect(() => {
+    confetti({
+      particleCount: 160,
+      spread: 80,
+      origin: { y: 0.55 },
+      colors: ["#a855f7", "#f59e0b", "#3b82f6", "#10b981", "#f43f5e"],
+    });
+  }, []);
   return (
     <div className="flex flex-col items-center justify-center min-h-[75vh] text-center px-2">
       {/* Trophy animation */}

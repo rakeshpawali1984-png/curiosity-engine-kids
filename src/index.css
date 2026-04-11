@@ -7,6 +7,21 @@
   box-sizing: border-box;
 }
 
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(32px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.screen-enter {
+  animation: slideInRight 0.25s ease-out both;
+}
+
 html,
 body {
   min-height: 100%;
@@ -16,7 +31,7 @@ body {
   padding: 0;
   /* Carry the app gradient all the way to the edges so overscroll never shows raw background */
   background: linear-gradient(to bottom right, #e0f2fe, #f5f3ff, #fce7f3);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-tap-highlight-color: transparent;
   /* Prevent horizontal overflow / bounce */
   overflow-x: hidden;

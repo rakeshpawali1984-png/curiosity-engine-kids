@@ -40,51 +40,53 @@ function MainApp() {
   return (
     <div className="min-h-[100dvh] bg-gradient-to-br from-sky-100 via-purple-50 to-pink-100">
       <div className="max-w-lg mx-auto min-h-[100dvh] px-4 pt-4 pb-8">
-        {screen === "home" && (
-          <HomeScreen
-            topics={activePack}
-            pack={pack}
-            onPackChange={setPack}
-            onSelect={selectTopic}
-          />
-        )}
+        <div key={screen} className="screen-enter">
+          {screen === "home" && (
+            <HomeScreen
+              topics={activePack}
+              pack={pack}
+              onPackChange={setPack}
+              onSelect={selectTopic}
+            />
+          )}
 
-        {screen === "story" && (
-          <StoryScreen
-            topic={currentTopic}
-            onNext={() => setScreen("explanation")}
-            onHome={goHome}
-          />
-        )}
+          {screen === "story" && (
+            <StoryScreen
+              topic={currentTopic}
+              onNext={() => setScreen("explanation")}
+              onHome={goHome}
+            />
+          )}
 
-        {screen === "explanation" && (
-          <ExplanationScreen
-            topic={currentTopic}
-            onNext={() => setScreen("activity")}
-            onHome={goHome}
-          />
-        )}
+          {screen === "explanation" && (
+            <ExplanationScreen
+              topic={currentTopic}
+              onNext={() => setScreen("activity")}
+              onHome={goHome}
+            />
+          )}
 
-        {screen === "activity" && (
-          <ActivityScreen
-            topic={currentTopic}
-            onNext={() => setScreen("quiz")}
-            onHome={goHome}
-          />
-        )}
+          {screen === "activity" && (
+            <ActivityScreen
+              topic={currentTopic}
+              onNext={() => setScreen("quiz")}
+              onHome={goHome}
+            />
+          )}
 
-        {screen === "quiz" && (
-          <QuizScreen
-            key={currentTopic.id}
-            topic={currentTopic}
-            onHome={goHome}
-            onComplete={() => setScreen("badge")}
-          />
-        )}
+          {screen === "quiz" && (
+            <QuizScreen
+              key={currentTopic.id}
+              topic={currentTopic}
+              onHome={goHome}
+              onComplete={() => setScreen("badge")}
+            />
+          )}
 
-        {screen === "badge" && (
-          <BadgeScreen topic={currentTopic} onHome={goHome} />
-        )}
+          {screen === "badge" && (
+            <BadgeScreen topic={currentTopic} onHome={goHome} />
+          )}
+        </div>
       </div>
     </div>
   );
