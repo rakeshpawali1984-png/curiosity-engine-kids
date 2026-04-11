@@ -38,8 +38,8 @@ function MainApp() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-sky-100 via-purple-50 to-pink-100">
-      <div className="max-w-lg mx-auto min-h-screen px-4 py-6">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-sky-100 via-purple-50 to-pink-100">
+      <div className="max-w-lg mx-auto min-h-[100dvh] px-4 pt-4 pb-8">
         {screen === "home" && (
           <HomeScreen
             topics={activePack}
