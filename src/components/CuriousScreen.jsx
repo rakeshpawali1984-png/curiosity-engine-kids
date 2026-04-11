@@ -215,19 +215,16 @@ Return ONLY valid JSON in the EXACT same format as the input — no markdown, no
 // API HELPER
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
+const OPENAI_PROXY = "/api/openai";
 
 async function callOpenAI(systemPrompt, userContent, temperature = 0.7, model = "gpt-4.1-mini", jsonMode = false) {
   const label = `[WonderEngine] ${model}`;
   const t0 = performance.now();
   console.log(`${label} → request start (temp=${temperature}, promptChars=${systemPrompt.length}, userChars=${userContent.length})`);
 
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+  const res = await fetch(OPENAI_PROXY, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${API_KEY}`,
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model,
       ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
