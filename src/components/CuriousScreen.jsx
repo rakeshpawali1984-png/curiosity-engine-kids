@@ -215,7 +215,7 @@ Return ONLY valid JSON in the EXACT same format as the input — no markdown, no
 // API HELPER
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const OPENAI_PROXY = "/api/openai";
+const OPENAI_PROXY = "/api/spark";
 
 async function callOpenAI(systemPrompt, userContent, temperature = 0.7, model = "gpt-4.1-mini", jsonMode = false) {
   const label = `[WonderEngine] ${model}`;
