@@ -9,9 +9,10 @@ node_modules/
 # Build output
 dist/
 
-# Local env files
+# Local env files (keep secrets out of git)
 .env
-.env.local
+.env.*
+!.env.example
 
 # Vite cache
 .vite/
@@ -19,3 +20,6 @@ dist/
 # macOS
 .DS_Store
 *.swp
+.vercel
+.env*.local
+supabase/.temp/

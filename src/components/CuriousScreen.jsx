@@ -217,20 +217,23 @@ Return ONLY valid JSON in the EXACT same format as the input — no markdown, no
 // API HELPER
 // ═══════════════════════════════════════════════════════════════════════════════
 
+
 const OPENAI_PROXY = "/api/spark";
 const OPENAI_DIRECT = "https://api.openai.com/v1/chat/completions";
 const LOCAL_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 const IS_DEV = import.meta.env.DEV;
+const USE_LOCAL_PROXY = import.meta.env.VITE_USE_LOCAL_PROXY === "true";
 
-async function callOpenAI(systemPrompt, userContent, temperature = 0.7, model = "gpt-4.1-mini", jsonMode = false) {
+async function callOpenAI(systemPrompt, userContent, temperature = 0.7, model = "gpt-4.1-mini", jsonMode = false, promptType = "generic") {
   const label = `[WonderEngine] ${model}`;
   const t0 = performance.now();
   console.log(`${label} → request start (temp=${temperature}, promptChars=${systemPrompt.length}, userChars=${userContent.length})`);
 
-  const url = IS_DEV ? OPENAI_DIRECT : OPENAI_PROXY;
-  const headers = IS_DEV
-    ? { "Content-Type": "application/json", "Authorization": `Bearer ${LOCAL_API_KEY}` }
-    : { "Content-Type": "application/json" };
+  const useProxy = !IS_DEV || USE_LOCAL_PROXY;
+  const url = useProxy ? OPENAI_PROXY : OPENAI_DIRECT;
+  const headers = useProxy
+    ? { "Content-Type": "application/json" }
+    : { "Content-Type": "application/json", "Authorization": `Bearer ${LOCAL_API_KEY}` };
 
   const res = await fetch(url, {
     method: "POST",
@@ -243,6 +246,7 @@ async function callOpenAI(systemPrompt, userContent, temperature = 0.7, model = 
         { role: "user", content: userContent },
       ],
       temperature,
+      cacheMeta: { promptType },
     }),
   });
 
@@ -387,9 +391,9 @@ async function runPipeline(query, onPhaseChange) {
   //   Bouncer       (~36 tok)  → safety check, runs concurrently
   console.log("[WonderEngine] firing Fast + Deep + Bouncer in parallel…");
 
-  const fastPromise = callOpenAI(CREATOR_FAST,  query, 0.7, "gpt-4.1-mini", true).then(parseFast);
-  const deepPromise = callOpenAI(CREATOR_DEEP,  query, 0.7, "gpt-4.1-mini", true).then(parseDeep);
-  const bouncerPromise = callOpenAI(BOUNCER_SYSTEM, `User query for a kids learning app: "${query}"`, 0.1, "gpt-4.1-nano").then(parseBouncer);
+  const fastPromise = callOpenAI(CREATOR_FAST, query, 0.7, "gpt-4.1-mini", true, "fast").then(parseFast);
+  const deepPromise = callOpenAI(CREATOR_DEEP, query, 0.7, "gpt-4.1-mini", true, "deep").then(parseDeep);
+  const bouncerPromise = callOpenAI(BOUNCER_SYSTEM, `User query for a kids learning app: "${query}"`, 0.1, "gpt-4.1-nano", false, "bouncer").then(parseBouncer);
 
   // Wait for fast + bouncer together (both are small/quick)
   const [fastResult, bounceResult] = await Promise.allSettled([fastPromise, bouncerPromise]);
