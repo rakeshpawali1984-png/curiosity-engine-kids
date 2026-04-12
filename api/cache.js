@@ -5,6 +5,7 @@ const { Pool } = pg;
 const DATABASE_URL = process.env.DATABASE_POOLER_URL || process.env.DATABASE_URL;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const CACHE_ENABLED = process.env.CACHE_ENABLED !== 'false';
+const CACHE_SEMANTIC_ON_PATH = process.env.CACHE_SEMANTIC_ON_PATH === 'true';
 
 let pool;
 
@@ -40,7 +41,19 @@ function isCacheAvailable() {
 }
 
 function normalizeQuery(value) {
-  return String(value || '').toLowerCase().trim().replace(/\s+/g, ' ');
+  const stopWords = new Set([
+    'the',
+    'a',
+    'an',
+  ]);
+
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((token) => token && !stopWords.has(token))
+    .join(' ')
+    .trim();
 }
 
 function toVectorLiteral(embedding) {
@@ -160,17 +173,20 @@ export async function getCache(requestBody, metrics = null) {
     finishMetric(metrics, 'exactLookupMs', exactLookupStartedAt);
 
     if (exactResult.rows[0]?.response_json) {
-      const exactUpdateStartedAt = nowMs();
-      await client.query(
-        `
-          update curiosity_cache
-          set hit_count = hit_count + 1,
-              last_accessed_at = now()
-          where id = $1
-        `,
-        [exactResult.rows[0].id]
-      );
-      finishMetric(metrics, 'exactUpdateMs', exactUpdateStartedAt);
+      const trackHits = metrics?.trackHits !== false;
+      if (trackHits) {
+        const exactUpdateStartedAt = nowMs();
+        await client.query(
+          `
+            update curiosity_cache
+            set hit_count = hit_count + 1,
+                last_accessed_at = now()
+            where id = $1
+          `,
+          [exactResult.rows[0].id]
+        );
+        finishMetric(metrics, 'exactUpdateMs', exactUpdateStartedAt);
+      }
       setMetric(metrics, 'lookupStatus', 'hit');
       setMetric(metrics, 'hitType', 'exact');
       finishMetric(metrics, 'lookupTotalMs', totalStartedAt);
@@ -179,6 +195,13 @@ export async function getCache(requestBody, metrics = null) {
         output: exactResult.rows[0].response_json,
         hitType: 'exact',
       };
+    }
+
+    if (!CACHE_SEMANTIC_ON_PATH) {
+      setMetric(metrics, 'lookupStatus', 'miss');
+      setMetric(metrics, 'semanticLookup', 'skipped');
+      finishMetric(metrics, 'lookupTotalMs', totalStartedAt);
+      return null;
     }
 
     const embeddingStartedAt = nowMs();
@@ -212,18 +235,21 @@ export async function getCache(requestBody, metrics = null) {
 
     const bestMatch = vectorResult.rows[0];
     if (bestMatch?.response_json && Number(bestMatch.similarity) >= threshold) {
-      const vectorUpdateStartedAt = nowMs();
-      await client.query(
-        `
-          update curiosity_cache
-          set hit_count = hit_count + 1,
-              last_accessed_at = now(),
-              similarity_used = $2
-          where id = $1
-        `,
-        [bestMatch.id, bestMatch.similarity]
-      );
-      finishMetric(metrics, 'vectorUpdateMs', vectorUpdateStartedAt);
+      const trackHits = metrics?.trackHits !== false;
+      if (trackHits) {
+        const vectorUpdateStartedAt = nowMs();
+        await client.query(
+          `
+            update curiosity_cache
+            set hit_count = hit_count + 1,
+                last_accessed_at = now(),
+                similarity_used = $2
+            where id = $1
+          `,
+          [bestMatch.id, bestMatch.similarity]
+        );
+        finishMetric(metrics, 'vectorUpdateMs', vectorUpdateStartedAt);
+      }
       setMetric(metrics, 'lookupStatus', 'hit');
       setMetric(metrics, 'hitType', 'vector');
       setMetric(metrics, 'similarity', Number(bestMatch.similarity));
@@ -246,6 +272,37 @@ export async function getCache(requestBody, metrics = null) {
     return null;
   } finally {
     client?.release();
+  }
+}
+
+export async function getCacheCorpusStats(recentWindowDays = 14) {
+  if (!isCacheAvailable()) {
+    return null;
+  }
+
+  try {
+    const result = await getPool().query(
+      `
+        select
+          count(*)::int as total_rows,
+          count(*) filter (
+            where created_at > now() - ($1 || ' days')::interval
+          )::int as recent_rows
+        from curiosity_cache
+        where expires_at > now()
+      `,
+      [String(recentWindowDays)]
+    );
+
+    const row = result.rows[0] || {};
+    return {
+      totalRows: Number(row.total_rows || 0),
+      recentRows: Number(row.recent_rows || 0),
+      recentWindowDays,
+    };
+  } catch (error) {
+    console.error('Cache corpus stats unavailable:', error.message);
+    return null;
   }
 }
 

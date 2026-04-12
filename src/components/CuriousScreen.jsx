@@ -231,6 +231,7 @@ async function callOpenAI(systemPrompt, userContent, temperature = 0.7, model = 
 
   const useProxy = !IS_DEV || USE_LOCAL_PROXY;
   const url = useProxy ? OPENAI_PROXY : OPENAI_DIRECT;
+  console.log(`${label} → route=${useProxy ? "proxy" : "direct"} url=${url}`);
   const headers = useProxy
     ? { "Content-Type": "application/json" }
     : { "Content-Type": "application/json", "Authorization": `Bearer ${LOCAL_API_KEY}` };
@@ -251,7 +252,9 @@ async function callOpenAI(systemPrompt, userContent, temperature = 0.7, model = 
   });
 
   const tFetch = performance.now();
-  console.log(`${label} → HTTP response received in ${(tFetch - t0).toFixed(0)}ms (status=${res.status})`);
+  const cacheStatus = res.headers.get("x-cache-status") || "none";
+  const cacheLookup = res.headers.get("x-cache-lookup") || "none";
+  console.log(`${label} → HTTP response received in ${(tFetch - t0).toFixed(0)}ms (status=${res.status}, cache=${cacheStatus}, lookup=${cacheLookup})`);
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
