@@ -24,7 +24,7 @@ export default function ExplanationScreen({ topic, onNext, onHome }) {
 
         <div className="space-y-3 mb-5">
           {paragraphs.map((para, i) => (
-            <p key={i} className="text-gray-700 text-lg leading-relaxed break-words hyphens-auto">
+            <p key={i} className="text-gray-700 text-lg leading-relaxed break-words hyphens-none">
               {para}
             </p>
           ))}

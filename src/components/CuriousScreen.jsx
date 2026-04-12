@@ -625,14 +625,23 @@ export default function CuriousScreen() {
         {/* Back to ask */}
         <button
           onClick={() => { setInput(""); goAsk(); }}
-          className="mb-6 flex items-center gap-1 text-gray-400 hover:text-purple-600 font-semibold text-base transition-colors"
+          className="mb-4 flex items-center gap-1 text-gray-400 hover:text-purple-600 font-semibold text-base transition-colors"
         >
           ← Ask something new
         </button>
 
-        <p className="text-center text-sm font-bold text-purple-400 uppercase tracking-widest mb-6">
-          Keep exploring
-        </p>
+        {/* Completed progress bar — all 5 green */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-gray-500 font-medium">Adventure complete!</span>
+            <span className="text-sm font-bold text-green-600">🏆 Keep Exploring</span>
+          </div>
+          <div className="flex gap-1.5">
+            {[1,2,3,4,5].map((i) => (
+              <div key={i} className="h-3 flex-1 rounded-full bg-green-400" />
+            ))}
+          </div>
+        </div>
 
         {/* Section 1 — Surprising fact */}
         {fact && (

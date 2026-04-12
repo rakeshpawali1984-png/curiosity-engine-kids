@@ -34,7 +34,7 @@ export default function ActivityScreen({ topic, onNext, onHome }) {
               <div className="w-10 h-10 rounded-full bg-green-400 text-white font-black flex items-center justify-center text-sm flex-shrink-0 mt-0.5">
                 {i + 1}
               </div>
-              <p className="text-gray-700 text-lg leading-snug break-words hyphens-auto">{step}</p>
+              <p className="text-gray-700 text-lg leading-snug break-words hyphens-none">{step}</p>
             </div>
           ))}
         </div>
