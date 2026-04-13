@@ -39,6 +39,7 @@ Known project refs from current setup:
 
 1. SUPABASE_URL
 2. SUPABASE_PUBLISHABLE_KEY
+3. VITE_AUTH_REDIRECT_URL (recommended for deterministic OAuth callbacks across preview URLs)
 
 ### Backend keys
 

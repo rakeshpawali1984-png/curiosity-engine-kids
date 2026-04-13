@@ -22,8 +22,8 @@ Child mode should be simple and focused:
 
 ## Main route and view modes
 
-1. Classic mode at /
-2. Curious mode at /get-curious
+1. Curious mode at /
+2. Classic mode at /get-curious
 3. Journey mode via in-app state toggle
 
 ## Child identity lifecycle

@@ -18,7 +18,7 @@ Curiosity Engine is a single-page React app plus serverless API endpoints.
 
 1. Parent signs in with Google (Supabase Auth).
 2. Parent can manage child profiles in `/parent` (PIN-gated route).
-3. Child uses either classic flow (`/`) or curious flow (`/get-curious`).
+3. Child uses curious flow at `/` or classic flow at `/get-curious`.
 4. Child actions write scoped history/badges in Supabase tables.
 5. Curious API calls pass through `/api/spark` with cache control in `api/cache.js`.
 

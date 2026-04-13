@@ -75,8 +75,8 @@
 
 ## Route model
 
-1. / -> classic experience (unless main experience override)
-2. /get-curious -> curious engine
+1. / -> curious experience
+2. /get-curious -> classic experience
 3. /parent -> parent portal with PIN gate
 
 ## Configuration model

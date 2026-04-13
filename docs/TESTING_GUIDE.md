@@ -61,11 +61,11 @@ npm run dev
 - edit child
 - delete child
 
-2. Classic flow:
+2. Classic flow (`/get-curious`):
 - home -> story -> explanation -> activity -> quiz -> badge
 - badge writes to child history
 
-3. Curious flow:
+3. Curious flow (`/`):
 - ask question
 - verify safe response renders
 - complete quiz path
