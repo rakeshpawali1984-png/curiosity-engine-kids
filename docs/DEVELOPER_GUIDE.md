@@ -117,6 +117,12 @@ Use when changing:
 2. cache read/write policy and diagnostics headers
 3. semantic cache thresholds and TTL behavior
 
+Current /api/spark policy:
+
+1. frontend proxy requests should not be treated as model selectors.
+2. model is selected by backend env via `OPENAI_SERVER_MODEL`.
+3. client-facing validation errors should remain generic to avoid leaking policy internals.
+
 ### Schema and migrations
 
 - `supabase/migrations/*`

@@ -93,6 +93,7 @@ Use this only for local verification before preview rollout.
 1. In `.env.local`, enable:
 - `API_AUTH_ENABLED=true`
 - `API_RATE_LIMIT_ENABLED=true`
+- `OPENAI_SERVER_MODEL=gpt-4.1-mini`
 
 2. Run local frontend and API runtimes:
 
@@ -107,10 +108,19 @@ npm run dev:api
 - no bearer token -> `401`
 - invalid bearer token -> `401`
 
+4b. Validate payload hardening and error surface:
+- malformed payload -> `400` with generic error text (`Invalid request payload`)
+- disallowed/over-limit fields -> `400` with generic error text
+- verify response does not list allowed models or size/token limits
+
 5. Validate throttling:
 - send repeated valid requests quickly
 - verify `429` appears after configured limit
 - verify retry behavior via `retry-after` and rate-limit headers
+
+6. Validate backend model ownership:
+- send proxy request without `model` and verify success
+- send proxy request with any `model` value and verify behavior is unchanged (server model policy applies)
 
 ## 6. Data and RLS validation
 

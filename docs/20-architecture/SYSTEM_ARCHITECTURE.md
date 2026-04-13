@@ -56,6 +56,9 @@
 1. spark handler behavior
 - method guard (POST only)
 - reads manual cache-read flag
+- enforces backend-selected model via env (request model from browser is ignored)
+- validates and sanitizes request payload with bounded limits
+- returns generic client-facing validation and upstream errors (no policy detail leakage)
 - optional cache hit response with diagnostic headers
 - OpenAI call on miss
 - cache write sync/async controlled by env flag
@@ -84,6 +87,7 @@
 
 2. backend env usage
 - OPENAI_API_KEY
+- OPENAI_SERVER_MODEL
 - DATABASE_URL or DATABASE_POOLER_URL
 - cache policy and prompt-version env keys
 

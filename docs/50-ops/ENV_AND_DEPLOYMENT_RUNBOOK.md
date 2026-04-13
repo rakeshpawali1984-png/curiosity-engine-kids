@@ -45,6 +45,7 @@ Known project refs from current setup:
 1. OPENAI_API_KEY
 2. DATABASE_URL
 3. DATABASE_POOLER_URL (recommended in serverless envs)
+4. OPENAI_SERVER_MODEL (server-selected model for /api/spark)
 
 ### Cache and prompt controls
 
@@ -61,6 +62,18 @@ Known project refs from current setup:
 11. PROMPT_VERSION_FAST
 12. PROMPT_VERSION_DEEP
 13. PROMPT_VERSION_BOUNCER
+
+### API hardening controls
+
+1. API_AUTH_ENABLED
+2. API_RATE_LIMIT_ENABLED
+3. API_RATE_LIMIT_WINDOW_MS
+4. API_RATE_LIMIT_MAX_REQUESTS
+5. OPENAI_ALLOWED_MODELS
+6. OPENAI_MAX_REQUEST_BYTES
+7. OPENAI_MAX_MESSAGE_COUNT
+8. OPENAI_MAX_MESSAGE_CHARS
+9. OPENAI_MAX_COMPLETION_TOKENS
 
 ## OAuth configuration runbook
 
@@ -99,6 +112,11 @@ Note:
 2. Add or overwrite key (preview):
 	vercel env add KEY preview --value "..." --yes --force
 3. Confirm key appears in listing.
+
+Branch-specific preview note:
+
+1. If Vercel prompts for a branch scope, set the branch explicitly for targeted rollout.
+2. For /api/spark model policy, ensure `OPENAI_SERVER_MODEL` is set and included in `OPENAI_ALLOWED_MODELS`.
 
 ## Incident handling quick notes
 

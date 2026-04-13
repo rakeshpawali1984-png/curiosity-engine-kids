@@ -22,6 +22,8 @@ Use this checklist before approving a preview build for merge.
 
 - [ ] Vercel preview has valid `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`.
 - [ ] Vercel preview has valid `OPENAI_API_KEY` and database URL(s).
+- [ ] Vercel preview has valid `/api/spark` hardening keys (`API_AUTH_ENABLED`, `API_RATE_LIMIT_ENABLED`, request bounds).
+- [ ] Vercel preview has `OPENAI_SERVER_MODEL` set and aligned with `OPENAI_ALLOWED_MODELS`.
 - [ ] Cache control env values are set intentionally (not inherited by accident).
 - [ ] Preview Supabase project has Google provider enabled.
 - [ ] OAuth redirect and allowlist includes preview deployment URL(s).
