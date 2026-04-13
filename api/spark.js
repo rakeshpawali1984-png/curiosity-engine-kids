@@ -4,10 +4,10 @@
 
 import { getCache, setCache } from './cache.js';
 
-const CACHE_ASYNC_STORE = process.env.CACHE_ASYNC_STORE === 'true';
-const CACHE_READ_ENABLED = process.env.CACHE_READ_ENABLED === 'true';
-const API_AUTH_ENABLED = process.env.API_AUTH_ENABLED === 'true';
-const API_RATE_LIMIT_ENABLED = process.env.API_RATE_LIMIT_ENABLED === 'true';
+const CACHE_ASYNC_STORE = (process.env.CACHE_ASYNC_STORE || '').trim() === 'true';
+const CACHE_READ_ENABLED = (process.env.CACHE_READ_ENABLED || '').trim() === 'true';
+const API_AUTH_ENABLED = (process.env.API_AUTH_ENABLED || '').trim() === 'true';
+const API_RATE_LIMIT_ENABLED = (process.env.API_RATE_LIMIT_ENABLED || '').trim() === 'true';
 const API_RATE_LIMIT_WINDOW_MS = Number(process.env.API_RATE_LIMIT_WINDOW_MS || '60000');
 const API_RATE_LIMIT_MAX_REQUESTS = Number(process.env.API_RATE_LIMIT_MAX_REQUESTS || '30');
 const OPENAI_MAX_REQUEST_BYTES = Number(process.env.OPENAI_MAX_REQUEST_BYTES || '60000');
