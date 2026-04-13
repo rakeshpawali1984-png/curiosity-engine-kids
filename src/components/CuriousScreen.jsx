@@ -462,26 +462,29 @@ async function runPipeline(query, onPhaseChange) {
   const fastPromise = callOpenAI(CREATOR_FAST, query, 0.7, "gpt-4.1-mini", true, "fast").then(parseFast);
   const deepPromise = callOpenAI(CREATOR_DEEP, query, 0.7, "gpt-4.1-mini", true, "deep").then(parseDeep);
   const bouncerPromise = callOpenAI(BOUNCER_SYSTEM, `User query for a kids learning app: "${query}"`, 0.1, "gpt-4.1-nano", false, "bouncer").then(parseBouncer);
+  let bouncerStatus = "pending";
+  bouncerPromise
+    .then((result) => {
+      bouncerStatus = result?.status || "fulfilled";
+    })
+    .catch(() => {
+      bouncerStatus = "rejected";
+    });
 
-  // Wait for fast + bouncer together (both are small/quick)
-  const [fastResult, bounceResult] = await Promise.allSettled([fastPromise, bouncerPromise]);
-
-  const tFast = performance.now();
-  console.log(`[WonderEngine] fast+bouncer done in ${(tFast - t0).toFixed(0)}ms — fast=${fastResult.status} bouncer=${bounceResult.status}`);
-
-  if (bounceResult.status === "fulfilled" &&
-      bounceResult.value.status.toUpperCase() === "UNSAFE") {
-    console.warn(`[WonderEngine] BLOCKED by bouncer — reason: ${bounceResult.value.reason}`);
-    throw new Error("BLOCKED");
-  }
-
-  if (fastResult.status === "rejected") {
-    console.error("[WonderEngine] Fast creator failed:", fastResult.reason);
+  // Wait only for fast creator so first paint is not blocked by bouncer timing.
+  let fastResult;
+  try {
+    fastResult = await fastPromise;
+  } catch (e) {
+    console.error("[WonderEngine] Fast creator failed:", e);
     throw new Error("CREATOR_FAIL");
   }
 
+  const tFast = performance.now();
+  console.log(`[WonderEngine] fast ready in ${(tFast - t0).toFixed(0)}ms — bouncer=${bouncerStatus}`);
+
   console.log(`[WonderEngine] first paint ready in ${(tFast - t0).toFixed(0)}ms ✅`);
-  return { partial: fastResult.value, deepPromise };
+  return { partial: fastResult, deepPromise, bouncerPromise };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -582,6 +585,7 @@ export default function CuriousScreen({
   // deepReady: true once activity/quiz/curiosity have arrived from the background call
   const [deepReady, setDeepReady] = useState(false);
   const deepPromiseRef = useRef(null);
+  const bouncerPromiseRef = useRef(null);
   const activeSearchIdRef = useRef(null);
 
   const goAsk = () => {
@@ -590,6 +594,7 @@ export default function CuriousScreen({
     setErrorMsg("");
     setDeepReady(false);
     deepPromiseRef.current = null;
+    bouncerPromiseRef.current = null;
     activeSearchIdRef.current = null;
   };
 
@@ -601,6 +606,7 @@ export default function CuriousScreen({
     setErrorMsg("");
     setDeepReady(false);
     deepPromiseRef.current = null;
+    bouncerPromiseRef.current = null;
     activeSearchIdRef.current = null;
     setScreen("loading");
     window.scrollTo(0, 0);
@@ -608,13 +614,26 @@ export default function CuriousScreen({
       if (onRecordSearch) {
         activeSearchIdRef.current = await onRecordSearch(query);
       }
-      const { partial, deepPromise } = await runPipeline(query, () => {});
+      const { partial, deepPromise, bouncerPromise } = await runPipeline(query, () => {});
       const partialTopic = buildPartialTopic(partial, query);
       setTopic(partialTopic);
       setScreen("story");
 
       // Store deep promise and resolve in background — merges when ready
       deepPromiseRef.current = deepPromise;
+      bouncerPromiseRef.current = bouncerPromise;
+
+      bouncerPromise.then((bounce) => {
+        if (bouncerPromiseRef.current !== bouncerPromise) return;
+        if (String(bounce?.status || "").toUpperCase() === "UNSAFE") {
+          console.warn(`[WonderEngine] BLOCKED by bouncer — reason: ${bounce.reason}`);
+          deepPromiseRef.current = null;
+          setScreen("blocked");
+        }
+      }).catch((e) => {
+        console.error("[WonderEngine] bouncer failed:", e.message);
+      });
+
       deepPromise.then((deep) => {
         // Only apply if this is still the active search (ref matches)
         if (deepPromiseRef.current === deepPromise) {
