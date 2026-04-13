@@ -25,6 +25,8 @@ import {
 
 const topicsSpark = normalizeTopicsSpark(topicsSparkRaw);
 const MAIN_EXPERIENCE = import.meta.env.VITE_MAIN_EXPERIENCE || "classic";
+const PARENT_PIN_MAX_ATTEMPTS = 5;
+const PARENT_PIN_LOCK_MS = 60 * 1000;
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -37,6 +39,8 @@ export default function App() {
   const [parentPinHash, setParentPinHash] = useState(null);
   const [parentPinSalt, setParentPinSalt] = useState(null);
   const [parentSecurityReady, setParentSecurityReady] = useState(false);
+  const [parentPinFailedAttempts, setParentPinFailedAttempts] = useState(0);
+  const [parentPinLockedUntil, setParentPinLockedUntil] = useState(0);
 
   const path = window.location.pathname;
   const isParentRoute = path === "/parent";
@@ -126,13 +130,29 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId) {
+      setParentPinFailedAttempts(0);
+      setParentPinLockedUntil(0);
+      return;
+    }
+    const { attempts, lockedUntil } = readPinGuard(userId);
+    setParentPinFailedAttempts(attempts);
+    setParentPinLockedUntil(lockedUntil);
+  }, [session?.user?.id]);
+
+  useEffect(() => {
     if (session && familyReady && !activeChild && !isParentRoute) {
       window.location.replace("/parent");
     }
   }, [session, familyReady, activeChild, isParentRoute]);
 
   const handleSignOut = async () => {
+    const userId = session?.user?.id;
+    if (userId) clearPinGuard(userId);
     setParentPortalUnlocked(false);
+    setParentPinFailedAttempts(0);
+    setParentPinLockedUntil(0);
     await supabase.auth.signOut();
     setShowJourney(false);
   };
@@ -162,12 +182,51 @@ export default function App() {
   };
 
   const verifyParentPin = async (pinInput) => {
-    if (!parentPinHash || !parentPinSalt) return false;
+    const userId = session?.user?.id;
+    if (!userId) {
+      return { ok: false, error: "Session expired. Please sign in again." };
+    }
+
+    if (Date.now() < parentPinLockedUntil) {
+      return {
+        ok: false,
+        error: "Too many attempts. Please wait and try again.",
+        lockedUntil: parentPinLockedUntil,
+      };
+    }
+
+    if (!parentPinHash || !parentPinSalt) {
+      return { ok: false, error: "Parent PIN is not set up yet." };
+    }
     const pinHash = await hashPin(pinInput, parentPinSalt);
-    if (pinHash !== parentPinHash) return false;
+    if (pinHash !== parentPinHash) {
+      const nextAttempts = parentPinFailedAttempts + 1;
+      if (nextAttempts >= PARENT_PIN_MAX_ATTEMPTS) {
+        const nextLock = Date.now() + PARENT_PIN_LOCK_MS;
+        setParentPinFailedAttempts(0);
+        setParentPinLockedUntil(nextLock);
+        writePinGuard(userId, 0, nextLock);
+        return {
+          ok: false,
+          error: "Too many attempts. Parent PIN is locked for 60 seconds.",
+          lockedUntil: nextLock,
+        };
+      }
+
+      setParentPinFailedAttempts(nextAttempts);
+      setParentPinLockedUntil(0);
+      writePinGuard(userId, nextAttempts, 0);
+      return {
+        ok: false,
+        error: `Incorrect PIN. ${PARENT_PIN_MAX_ATTEMPTS - nextAttempts} attempt(s) left.`,
+      };
+    }
 
     setParentPortalUnlocked(true);
-    return true;
+    setParentPinFailedAttempts(0);
+    setParentPinLockedUntil(0);
+    clearPinGuard(userId);
+    return { ok: true };
   };
 
   const createParentPin = async (pinInput) => {
@@ -177,6 +236,30 @@ export default function App() {
     setParentPinHash(pinHash);
     setParentPinSalt(salt);
     setParentPortalUnlocked(true);
+  };
+
+  const changeParentPin = async (currentPinInput, newPinInput) => {
+    if (!session?.user?.id) {
+      return { ok: false, error: "Session expired. Please sign in again." };
+    }
+    if (!parentPinHash || !parentPinSalt) {
+      return { ok: false, error: "Parent PIN is not set up yet." };
+    }
+
+    const currentHash = await hashPin(currentPinInput, parentPinSalt);
+    if (currentHash !== parentPinHash) {
+      return { ok: false, error: "Current PIN is incorrect." };
+    }
+
+    const nextSalt = createPinSalt();
+    const nextHash = await hashPin(newPinInput, nextSalt);
+    await setParentPinSecurity(session.user.id, nextHash, nextSalt);
+    setParentPinHash(nextHash);
+    setParentPinSalt(nextSalt);
+    setParentPinFailedAttempts(0);
+    setParentPinLockedUntil(0);
+    clearPinGuard(session.user.id);
+    return { ok: true };
   };
 
   if (!hasSupabaseConfig) {
@@ -239,6 +322,7 @@ export default function App() {
         <ParentPinGateScreen
           onSubmit={verifyParentPin}
           onSignOut={handleSignOut}
+          initialLockedUntil={parentPinLockedUntil}
         />
       );
     }
@@ -250,6 +334,7 @@ export default function App() {
         activeChildId={activeChildId}
         onSelectChild={(id) => setActiveChildId(id)}
         onChildrenUpdated={() => refreshChildren(session.user.id)}
+        onChangeParentPin={changeParentPin}
         onSignOut={handleSignOut}
         onDone={() => {
           window.location.href = "/";
@@ -391,19 +476,41 @@ function MainApp({ activeChild, onOpenJourney, onOpenParentPortal, onRecordSearc
   );
 }
 
-function ParentPinGateScreen({ onSubmit, onSignOut }) {
+function ParentPinGateScreen({ onSubmit, onSignOut, initialLockedUntil = 0 }) {
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [checking, setChecking] = useState(false);
+  const [lockedUntil, setLockedUntil] = useState(initialLockedUntil);
+  const [nowTs, setNowTs] = useState(Date.now());
+
+  useEffect(() => {
+    setLockedUntil(initialLockedUntil || 0);
+  }, [initialLockedUntil]);
+
+  useEffect(() => {
+    if (lockedUntil <= Date.now()) return undefined;
+    const timer = window.setInterval(() => {
+      setNowTs(Date.now());
+    }, 1000);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [lockedUntil]);
+
+  const lockedSeconds = Math.max(0, Math.ceil((lockedUntil - nowTs) / 1000));
+  const isLocked = lockedSeconds > 0;
 
   const handleUnlock = async () => {
+    if (isLocked) return;
     setChecking(true);
-    if (await onSubmit(pin.trim())) {
+    const result = await onSubmit(pin.trim());
+    if (result?.ok) {
       setError("");
       setChecking(false);
       return;
     }
-    setError("Incorrect PIN. Please try again.");
+    setError(result?.error || "Incorrect PIN. Please try again.");
+    setLockedUntil(result?.lockedUntil || 0);
     setPin("");
     setChecking(false);
   };
@@ -415,12 +522,19 @@ function ParentPinGateScreen({ onSubmit, onSignOut }) {
         <h1 className="text-2xl font-black text-gray-800 mb-2">Enter parent PIN</h1>
         <p className="text-sm text-gray-500 mb-5">This area is for parent profile and settings only.</p>
 
+        {isLocked && (
+          <p className="text-sm text-amber-700 font-semibold mb-3">
+            Too many attempts. Try again in {lockedSeconds}s.
+          </p>
+        )}
+
         <input
           type="password"
           inputMode="numeric"
           autoComplete="off"
           value={pin}
           onChange={(e) => setPin(e.target.value)}
+          disabled={isLocked}
           onKeyDown={(e) => {
             if (e.key === "Enter") handleUnlock();
           }}
@@ -432,10 +546,10 @@ function ParentPinGateScreen({ onSubmit, onSignOut }) {
 
         <button
           onClick={handleUnlock}
-          disabled={!pin.trim() || checking}
+          disabled={!pin.trim() || checking || isLocked}
           className="w-full rounded-2xl bg-purple-500 hover:bg-purple-600 disabled:bg-purple-300 text-white font-bold py-3 transition-all active:scale-95"
         >
-          {checking ? "Checking..." : "Unlock Parent Portal"}
+          {checking ? "Checking..." : isLocked ? "Locked" : "Unlock Parent Portal"}
         </button>
 
         <button
@@ -556,4 +670,30 @@ async function hashPin(pin, salt) {
   const digest = await window.crypto.subtle.digest("SHA-256", encoded);
   const bytes = new Uint8Array(digest);
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function pinGuardAttemptsKey(userId) {
+  return `parent-pin-attempts:${userId}`;
+}
+
+function pinGuardLockKey(userId) {
+  return `parent-pin-locked-until:${userId}`;
+}
+
+function readPinGuard(userId) {
+  const rawAttempts = Number(window.sessionStorage.getItem(pinGuardAttemptsKey(userId)) || 0);
+  const rawLockedUntil = Number(window.sessionStorage.getItem(pinGuardLockKey(userId)) || 0);
+  const attempts = Number.isFinite(rawAttempts) ? Math.max(0, rawAttempts) : 0;
+  const lockedUntil = Number.isFinite(rawLockedUntil) ? Math.max(0, rawLockedUntil) : 0;
+  return { attempts, lockedUntil };
+}
+
+function writePinGuard(userId, attempts, lockedUntil) {
+  window.sessionStorage.setItem(pinGuardAttemptsKey(userId), String(attempts));
+  window.sessionStorage.setItem(pinGuardLockKey(userId), String(lockedUntil));
+}
+
+function clearPinGuard(userId) {
+  window.sessionStorage.removeItem(pinGuardAttemptsKey(userId));
+  window.sessionStorage.removeItem(pinGuardLockKey(userId));
 }

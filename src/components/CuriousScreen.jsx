@@ -5,6 +5,7 @@ import ActivityScreen from "./ActivityScreen";
 import QuizScreen from "./QuizScreen";
 import BadgeScreen from "./BadgeScreen";
 import FamilyTopBar from "./FamilyTopBar";
+import { hasSupabaseConfig, supabase } from "../lib/supabaseClient";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // LAYER 1 — INPUT GUARD (regex + l33tspeak normalisation)
@@ -228,6 +229,20 @@ const LOCAL_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 const IS_DEV = import.meta.env.DEV;
 const USE_LOCAL_PROXY = import.meta.env.VITE_USE_LOCAL_PROXY === "true";
 
+async function getProxyHeaders() {
+  const headers = { "Content-Type": "application/json" };
+  if (!hasSupabaseConfig || !supabase) {
+    return headers;
+  }
+
+  const { data } = await supabase.auth.getSession();
+  const token = data?.session?.access_token;
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 async function callOpenAI(systemPrompt, userContent, temperature = 0.7, model = "gpt-4.1-mini", jsonMode = false, promptType = "generic") {
   const label = `[WonderEngine] ${model}`;
   const t0 = performance.now();
@@ -237,7 +252,7 @@ async function callOpenAI(systemPrompt, userContent, temperature = 0.7, model = 
   const url = useProxy ? OPENAI_PROXY : OPENAI_DIRECT;
   console.log(`${label} → route=${useProxy ? "proxy" : "direct"} url=${url}`);
   const headers = useProxy
-    ? { "Content-Type": "application/json" }
+    ? await getProxyHeaders()
     : { "Content-Type": "application/json", "Authorization": `Bearer ${LOCAL_API_KEY}` };
 
   const res = await fetch(url, {

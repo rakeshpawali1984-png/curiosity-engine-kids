@@ -15,6 +15,7 @@ export default function ChildProfilesScreen({
   activeChildId,
   onSelectChild,
   onChildrenUpdated,
+  onChangeParentPin,
   onSignOut,
   onDone,
 }) {
@@ -30,6 +31,13 @@ export default function ChildProfilesScreen({
   const [expandProfiles, setExpandProfiles] = useState(true);
   const [expandSelected, setExpandSelected] = useState(true);
   const [expandAdd, setExpandAdd] = useState(children.length === 0);
+  const [expandSecurity, setExpandSecurity] = useState(false);
+  const [currentPin, setCurrentPin] = useState("");
+  const [nextPin, setNextPin] = useState("");
+  const [confirmNextPin, setConfirmNextPin] = useState("");
+  const [updatingPin, setUpdatingPin] = useState(false);
+  const [pinMessage, setPinMessage] = useState("");
+  const [pinError, setPinError] = useState("");
   const canCreate = children.length < 3;
 
   const activeChild = useMemo(
@@ -116,6 +124,44 @@ export default function ChildProfilesScreen({
       alert(e.message || "Could not delete child profile");
     } finally {
       setRunningAction(false);
+    }
+  };
+
+  const handleChangePin = async () => {
+    if (!onChangeParentPin || updatingPin) return;
+
+    const nextPinTrimmed = nextPin.trim();
+    const confirmTrimmed = confirmNextPin.trim();
+    if (!/^\d{4,8}$/.test(nextPinTrimmed)) {
+      setPinError("New PIN must be 4 to 8 digits.");
+      setPinMessage("");
+      return;
+    }
+    if (nextPinTrimmed !== confirmTrimmed) {
+      setPinError("New PIN and confirm PIN do not match.");
+      setPinMessage("");
+      return;
+    }
+
+    setPinError("");
+    setPinMessage("");
+    setUpdatingPin(true);
+    try {
+      const result = await onChangeParentPin(currentPin.trim(), nextPinTrimmed);
+      if (!result?.ok) {
+        setPinError(result?.error || "Could not change PIN.");
+        return;
+      }
+      setCurrentPin("");
+      setNextPin("");
+      setConfirmNextPin("");
+      setPinError("");
+      setPinMessage("Parent PIN updated successfully.");
+    } catch (e) {
+      setPinError(e.message || "Could not change PIN.");
+      setPinMessage("");
+    } finally {
+      setUpdatingPin(false);
     }
   };
 
@@ -364,6 +410,75 @@ export default function ChildProfilesScreen({
             </div>
           )}
         </div>
+
+        {onChangeParentPin && (
+          <div className="bg-white rounded-3xl shadow-lg p-6 border border-indigo-100 mb-5">
+            <button
+              onClick={() => setExpandSecurity((v) => !v)}
+              className="w-full flex items-center justify-between"
+            >
+              <div className="text-left">
+                <p className="text-xs font-bold uppercase tracking-widest text-indigo-600 mb-2">
+                  Parent Security
+                </p>
+                <p className="text-sm text-gray-500">Change your parent PIN</p>
+              </div>
+              <span className="text-indigo-600 font-bold text-xl">{expandSecurity ? "−" : "+"}</span>
+            </button>
+
+            {expandSecurity && (
+              <div className="mt-4">
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  value={currentPin}
+                  onChange={(e) => setCurrentPin(e.target.value)}
+                  placeholder="Current PIN"
+                  className="w-full rounded-2xl border-2 border-gray-200 focus:border-indigo-400 px-4 py-3 outline-none mb-3"
+                />
+
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  value={nextPin}
+                  onChange={(e) => setNextPin(e.target.value)}
+                  placeholder="New PIN (4-8 digits)"
+                  className="w-full rounded-2xl border-2 border-gray-200 focus:border-indigo-400 px-4 py-3 outline-none mb-3"
+                />
+
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  value={confirmNextPin}
+                  onChange={(e) => setConfirmNextPin(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleChangePin();
+                  }}
+                  placeholder="Confirm new PIN"
+                  className="w-full rounded-2xl border-2 border-gray-200 focus:border-indigo-400 px-4 py-3 outline-none mb-3"
+                />
+
+                {pinError && (
+                  <p className="text-sm text-red-600 font-semibold mb-3">{pinError}</p>
+                )}
+                {pinMessage && (
+                  <p className="text-sm text-green-700 font-semibold mb-3">{pinMessage}</p>
+                )}
+
+                <button
+                  onClick={handleChangePin}
+                  disabled={updatingPin || !currentPin.trim() || !nextPin.trim() || !confirmNextPin.trim()}
+                  className="w-full rounded-2xl bg-indigo-500 hover:bg-indigo-600 disabled:bg-indigo-300 text-white font-bold py-3 transition-all active:scale-95"
+                >
+                  {updatingPin ? "Updating..." : "Change PIN"}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {activeChild && onDone && (
           <button

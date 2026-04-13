@@ -6,6 +6,24 @@ import { getCache, setCache } from './cache.js';
 
 const CACHE_ASYNC_STORE = process.env.CACHE_ASYNC_STORE === 'true';
 const CACHE_READ_ENABLED = process.env.CACHE_READ_ENABLED === 'true';
+const API_AUTH_ENABLED = process.env.API_AUTH_ENABLED === 'true';
+const API_RATE_LIMIT_ENABLED = process.env.API_RATE_LIMIT_ENABLED === 'true';
+const API_RATE_LIMIT_WINDOW_MS = Number(process.env.API_RATE_LIMIT_WINDOW_MS || '60000');
+const API_RATE_LIMIT_MAX_REQUESTS = Number(process.env.API_RATE_LIMIT_MAX_REQUESTS || '30');
+const OPENAI_MAX_REQUEST_BYTES = Number(process.env.OPENAI_MAX_REQUEST_BYTES || '60000');
+const OPENAI_MAX_MESSAGE_COUNT = Number(process.env.OPENAI_MAX_MESSAGE_COUNT || '20');
+const OPENAI_MAX_MESSAGE_CHARS = Number(process.env.OPENAI_MAX_MESSAGE_CHARS || '4000');
+const OPENAI_MAX_COMPLETION_TOKENS = Number(process.env.OPENAI_MAX_COMPLETION_TOKENS || '700');
+const OPENAI_ALLOWED_MODELS = String(process.env.OPENAI_ALLOWED_MODELS || 'gpt-4.1-mini')
+  .split(',')
+  .map((m) => m.trim())
+  .filter(Boolean);
+
+const tokenValidationCache = globalThis.__sparkTokenValidationCache || new Map();
+globalThis.__sparkTokenValidationCache = tokenValidationCache;
+
+const rateLimitStore = globalThis.__sparkRateLimitStore || new Map();
+globalThis.__sparkRateLimitStore = rateLimitStore;
 
 function nowMs() {
   return Date.now();
@@ -27,9 +45,224 @@ function logPerf(requestId, payload) {
   console.log(`[perf][spark][${requestId}] ${JSON.stringify(payload)}`);
 }
 
+function getClientIp(req) {
+  const xfwd = req.headers['x-forwarded-for'];
+  if (!xfwd) return 'unknown';
+  return String(xfwd).split(',')[0].trim() || 'unknown';
+}
+
+function parseBearerToken(authHeader) {
+  if (!authHeader || typeof authHeader !== 'string') return null;
+  const [scheme, token] = authHeader.trim().split(/\s+/);
+  if (!scheme || scheme.toLowerCase() !== 'bearer' || !token) return null;
+  return token;
+}
+
+function decodeJwtPayload(token) {
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) return null;
+    const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = payload.padEnd(Math.ceil(payload.length / 4) * 4, '=');
+    return JSON.parse(Buffer.from(padded, 'base64').toString('utf8'));
+  } catch {
+    return null;
+  }
+}
+
+async function validateSupabaseToken(token) {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseAnon = process.env.SUPABASE_PUBLISHABLE_KEY;
+  if (!supabaseUrl || !supabaseAnon) {
+    return { ok: false, status: 500, error: 'Supabase auth config is missing on server' };
+  }
+
+  const cached = tokenValidationCache.get(token);
+  if (cached && cached.expiresAt > Date.now()) {
+    return { ok: true, userId: cached.userId };
+  }
+
+  const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      apikey: supabaseAnon,
+    },
+  });
+
+  if (!response.ok) {
+    return { ok: false, status: 401, error: 'Invalid or expired access token' };
+  }
+
+  const user = await response.json().catch(() => null);
+  if (!user?.id) {
+    return { ok: false, status: 401, error: 'Token did not resolve to a valid user' };
+  }
+
+  const jwtPayload = decodeJwtPayload(token);
+  const expMs = jwtPayload?.exp ? Number(jwtPayload.exp) * 1000 : Date.now() + 60_000;
+  const cacheExpiry = Math.min(expMs, Date.now() + 60_000);
+  tokenValidationCache.set(token, { userId: user.id, expiresAt: cacheExpiry });
+  return { ok: true, userId: user.id };
+}
+
+function checkRateLimit(key, limit, windowMs) {
+  const now = Date.now();
+  const existing = rateLimitStore.get(key);
+
+  if (!existing || existing.resetAt <= now) {
+    const fresh = { count: 1, resetAt: now + windowMs };
+    rateLimitStore.set(key, fresh);
+    return {
+      allowed: true,
+      remaining: Math.max(0, limit - fresh.count),
+      resetAt: fresh.resetAt,
+      resetInMs: windowMs,
+      limit,
+    };
+  }
+
+  existing.count += 1;
+  rateLimitStore.set(key, existing);
+  const remaining = Math.max(0, limit - existing.count);
+  return {
+    allowed: existing.count <= limit,
+    remaining,
+    resetAt: existing.resetAt,
+    resetInMs: Math.max(0, existing.resetAt - now),
+    limit,
+  };
+}
+
+function setRateLimitHeaders(res, result) {
+  res.setHeader('x-ratelimit-limit', String(result.limit));
+  res.setHeader('x-ratelimit-remaining', String(result.remaining));
+  res.setHeader('x-ratelimit-reset', String(result.resetAt));
+}
+
+function clampNumber(value, min, max) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  if (value < min || value > max) return null;
+  return value;
+}
+
+function normalizePromptType(value) {
+  const allowed = new Set(['fast', 'deep', 'bouncer', 'generic']);
+  const normalized = String(value || 'generic').toLowerCase();
+  return allowed.has(normalized) ? normalized : 'generic';
+}
+
+function sanitizeOpenAiRequest(rawBody) {
+  if (!rawBody || typeof rawBody !== 'object') {
+    return { ok: false, error: 'Request body must be a JSON object' };
+  }
+
+  const sizeBytes = Buffer.byteLength(JSON.stringify(rawBody), 'utf8');
+  if (sizeBytes > OPENAI_MAX_REQUEST_BYTES) {
+    return { ok: false, error: `Request body too large. Max ${OPENAI_MAX_REQUEST_BYTES} bytes` };
+  }
+
+  const model = String(rawBody.model || '').trim();
+  if (!model || !OPENAI_ALLOWED_MODELS.includes(model)) {
+    return { ok: false, error: `Model not allowed. Allowed: ${OPENAI_ALLOWED_MODELS.join(', ')}` };
+  }
+
+  if (!Array.isArray(rawBody.messages) || rawBody.messages.length === 0) {
+    return { ok: false, error: 'messages must be a non-empty array' };
+  }
+
+  if (rawBody.messages.length > OPENAI_MAX_MESSAGE_COUNT) {
+    return { ok: false, error: `Too many messages. Max ${OPENAI_MAX_MESSAGE_COUNT}` };
+  }
+
+  const messages = [];
+  for (const message of rawBody.messages) {
+    const role = String(message?.role || '');
+    if (!['system', 'user', 'assistant'].includes(role)) {
+      return { ok: false, error: 'Invalid message role' };
+    }
+    if (typeof message?.content !== 'string' || !message.content.trim()) {
+      return { ok: false, error: 'Each message content must be a non-empty string' };
+    }
+    if (message.content.length > OPENAI_MAX_MESSAGE_CHARS) {
+      return { ok: false, error: `Message content too long. Max ${OPENAI_MAX_MESSAGE_CHARS} chars` };
+    }
+    messages.push({ role, content: message.content });
+  }
+
+  const sanitized = { model, messages };
+  const temperature = clampNumber(rawBody.temperature, 0, 2);
+  if (temperature !== null) sanitized.temperature = temperature;
+
+  const maxCompletionTokens = rawBody.max_completion_tokens;
+  const maxTokens = rawBody.max_tokens;
+  if (maxCompletionTokens !== undefined) {
+    const n = Number(maxCompletionTokens);
+    if (!Number.isInteger(n) || n <= 0 || n > OPENAI_MAX_COMPLETION_TOKENS) {
+      return {
+        ok: false,
+        error: `max_completion_tokens must be 1-${OPENAI_MAX_COMPLETION_TOKENS}`,
+      };
+    }
+    sanitized.max_completion_tokens = n;
+  }
+  if (maxTokens !== undefined) {
+    const n = Number(maxTokens);
+    if (!Number.isInteger(n) || n <= 0 || n > OPENAI_MAX_COMPLETION_TOKENS) {
+      return {
+        ok: false,
+        error: `max_tokens must be 1-${OPENAI_MAX_COMPLETION_TOKENS}`,
+      };
+    }
+    sanitized.max_tokens = n;
+  }
+
+  const topP = clampNumber(rawBody.top_p, 0, 1);
+  if (topP !== null) sanitized.top_p = topP;
+  const frequencyPenalty = clampNumber(rawBody.frequency_penalty, -2, 2);
+  if (frequencyPenalty !== null) sanitized.frequency_penalty = frequencyPenalty;
+  const presencePenalty = clampNumber(rawBody.presence_penalty, -2, 2);
+  if (presencePenalty !== null) sanitized.presence_penalty = presencePenalty;
+
+  if (rawBody.response_format?.type === 'json_object') {
+    sanitized.response_format = { type: 'json_object' };
+  }
+
+  const promptType = normalizePromptType(rawBody?.cacheMeta?.promptType);
+  return { ok: true, sanitized, promptType };
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  if (API_AUTH_ENABLED) {
+    const token = parseBearerToken(req.headers.authorization);
+    if (!token) {
+      return res.status(401).json({ error: 'Missing bearer token' });
+    }
+
+    const authResult = await validateSupabaseToken(token);
+    if (!authResult.ok) {
+      return res.status(authResult.status || 401).json({ error: authResult.error || 'Unauthorized' });
+    }
+
+    req.authUserId = authResult.userId;
+  }
+
+  if (API_RATE_LIMIT_ENABLED) {
+    const clientIp = getClientIp(req);
+    const limiterKey = `${req.authUserId || 'anon'}:${clientIp}`;
+    const limitResult = checkRateLimit(limiterKey, API_RATE_LIMIT_MAX_REQUESTS, API_RATE_LIMIT_WINDOW_MS);
+    setRateLimitHeaders(res, limitResult);
+    if (!limitResult.allowed) {
+      res.setHeader('retry-after', String(Math.ceil(limitResult.resetInMs / 1000)));
+      return res.status(429).json({
+        error: 'Rate limit exceeded',
+        retry_after_seconds: Math.ceil(limitResult.resetInMs / 1000),
+      });
+    }
   }
 
   const apiKey = process.env.OPENAI_API_KEY;
@@ -39,8 +272,18 @@ export default async function handler(req, res) {
 
   const requestStartedAt = nowMs();
   const requestId = createRequestId();
-  const cacheInput = req.body;
-  const { cacheMeta, ...openAiRequest } = req.body || {};
+  const validated = sanitizeOpenAiRequest(req.body || {});
+  if (!validated.ok) {
+    return res.status(400).json({ error: validated.error });
+  }
+
+  const openAiRequest = validated.sanitized;
+  const cacheInput = {
+    ...openAiRequest,
+    cacheMeta: {
+      promptType: validated.promptType,
+    },
+  };
   const lookupMetrics = { trackHits: true };
   const shouldRunLookup = CACHE_READ_ENABLED;
   res.setHeader('x-cache-policy', `manual:${CACHE_READ_ENABLED ? 'enabled' : 'disabled'}`);
