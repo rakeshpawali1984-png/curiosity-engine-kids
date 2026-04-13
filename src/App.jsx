@@ -24,8 +24,6 @@ import {
 } from "./lib/familyData";
 
 const topicsSpark = normalizeTopicsSpark(topicsSparkRaw);
-const MAIN_EXPERIENCE = import.meta.env.VITE_MAIN_EXPERIENCE || "classic";
-const DEFAULT_CHILD_ROUTE = MAIN_EXPERIENCE === "curious" ? "/get-curious" : "/";
 const PARENT_PIN_MAX_ATTEMPTS = 5;
 const PARENT_PIN_LOCK_MS = 60 * 1000;
 
@@ -46,7 +44,6 @@ export default function App() {
   const path = window.location.pathname;
   const isParentRoute = path === "/parent";
   const isCuriousRoute = path === "/get-curious";
-  const useCuriousAsMain = MAIN_EXPERIENCE === "curious" && path === "/";
 
   const activeChild = useMemo(
     () => children.find((c) => c.id === activeChildId) || null,
@@ -147,12 +144,6 @@ export default function App() {
       window.location.replace("/parent");
     }
   }, [session, familyReady, activeChild, isParentRoute]);
-
-  useEffect(() => {
-    if (session && familyReady && activeChild && !isParentRoute && MAIN_EXPERIENCE === "curious" && path === "/") {
-      window.location.replace("/get-curious");
-    }
-  }, [session, familyReady, activeChild, isParentRoute, path]);
 
   const handleSignOut = async () => {
     const userId = session?.user?.id;
@@ -344,7 +335,7 @@ export default function App() {
         onChangeParentPin={changeParentPin}
         onSignOut={handleSignOut}
         onDone={() => {
-          window.location.href = DEFAULT_CHILD_ROUTE;
+          window.location.href = "/";
         }}
       />
     );
@@ -368,7 +359,7 @@ export default function App() {
     return <JourneyScreen activeChild={activeChild} onBackHome={() => setShowJourney(false)} />;
   }
 
-  if (isCuriousRoute || useCuriousAsMain) {
+  if (!isCuriousRoute) {
     return (
       <CuriousScreen
         activeChild={activeChild}
