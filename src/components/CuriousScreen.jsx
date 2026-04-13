@@ -255,19 +255,21 @@ async function callOpenAI(systemPrompt, userContent, temperature = 0.7, model = 
     ? await getProxyHeaders()
     : { "Content-Type": "application/json", "Authorization": `Bearer ${LOCAL_API_KEY}` };
 
+  const requestBody = {
+    ...(useProxy ? {} : { model }),
+    ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userContent },
+    ],
+    temperature,
+    cacheMeta: { promptType },
+  };
+
   const res = await fetch(url, {
     method: "POST",
     headers,
-    body: JSON.stringify({
-      model,
-      ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userContent },
-      ],
-      temperature,
-      cacheMeta: { promptType },
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   const tFetch = performance.now();

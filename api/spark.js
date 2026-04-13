@@ -18,6 +18,7 @@ const OPENAI_ALLOWED_MODELS = String(process.env.OPENAI_ALLOWED_MODELS || 'gpt-4
   .split(',')
   .map((m) => m.trim())
   .filter(Boolean);
+const OPENAI_SERVER_MODEL = String(process.env.OPENAI_SERVER_MODEL || OPENAI_ALLOWED_MODELS[0] || 'gpt-4.1-mini').trim();
 
 const tokenValidationCache = globalThis.__sparkTokenValidationCache || new Map();
 globalThis.__sparkTokenValidationCache = tokenValidationCache;
@@ -152,45 +153,48 @@ function normalizePromptType(value) {
   return allowed.has(normalized) ? normalized : 'generic';
 }
 
+function invalidPayload() {
+  return { ok: false, status: 400, error: 'Invalid request payload' };
+}
+
 function sanitizeOpenAiRequest(rawBody) {
   if (!rawBody || typeof rawBody !== 'object') {
-    return { ok: false, error: 'Request body must be a JSON object' };
+    return invalidPayload();
+  }
+
+  if (!OPENAI_ALLOWED_MODELS.includes(OPENAI_SERVER_MODEL)) {
+    return { ok: false, status: 500, error: 'Server configuration error' };
   }
 
   const sizeBytes = Buffer.byteLength(JSON.stringify(rawBody), 'utf8');
   if (sizeBytes > OPENAI_MAX_REQUEST_BYTES) {
-    return { ok: false, error: `Request body too large. Max ${OPENAI_MAX_REQUEST_BYTES} bytes` };
-  }
-
-  const model = String(rawBody.model || '').trim();
-  if (!model || !OPENAI_ALLOWED_MODELS.includes(model)) {
-    return { ok: false, error: `Model not allowed. Allowed: ${OPENAI_ALLOWED_MODELS.join(', ')}` };
+    return invalidPayload();
   }
 
   if (!Array.isArray(rawBody.messages) || rawBody.messages.length === 0) {
-    return { ok: false, error: 'messages must be a non-empty array' };
+    return invalidPayload();
   }
 
   if (rawBody.messages.length > OPENAI_MAX_MESSAGE_COUNT) {
-    return { ok: false, error: `Too many messages. Max ${OPENAI_MAX_MESSAGE_COUNT}` };
+    return invalidPayload();
   }
 
   const messages = [];
   for (const message of rawBody.messages) {
     const role = String(message?.role || '');
     if (!['system', 'user', 'assistant'].includes(role)) {
-      return { ok: false, error: 'Invalid message role' };
+      return invalidPayload();
     }
     if (typeof message?.content !== 'string' || !message.content.trim()) {
-      return { ok: false, error: 'Each message content must be a non-empty string' };
+      return invalidPayload();
     }
     if (message.content.length > OPENAI_MAX_MESSAGE_CHARS) {
-      return { ok: false, error: `Message content too long. Max ${OPENAI_MAX_MESSAGE_CHARS} chars` };
+      return invalidPayload();
     }
     messages.push({ role, content: message.content });
   }
 
-  const sanitized = { model, messages };
+  const sanitized = { model: OPENAI_SERVER_MODEL, messages };
   const temperature = clampNumber(rawBody.temperature, 0, 2);
   if (temperature !== null) sanitized.temperature = temperature;
 
@@ -199,20 +203,14 @@ function sanitizeOpenAiRequest(rawBody) {
   if (maxCompletionTokens !== undefined) {
     const n = Number(maxCompletionTokens);
     if (!Number.isInteger(n) || n <= 0 || n > OPENAI_MAX_COMPLETION_TOKENS) {
-      return {
-        ok: false,
-        error: `max_completion_tokens must be 1-${OPENAI_MAX_COMPLETION_TOKENS}`,
-      };
+      return invalidPayload();
     }
     sanitized.max_completion_tokens = n;
   }
   if (maxTokens !== undefined) {
     const n = Number(maxTokens);
     if (!Number.isInteger(n) || n <= 0 || n > OPENAI_MAX_COMPLETION_TOKENS) {
-      return {
-        ok: false,
-        error: `max_tokens must be 1-${OPENAI_MAX_COMPLETION_TOKENS}`,
-      };
+      return invalidPayload();
     }
     sanitized.max_tokens = n;
   }
@@ -274,7 +272,7 @@ export default async function handler(req, res) {
   const requestId = createRequestId();
   const validated = sanitizeOpenAiRequest(req.body || {});
   if (!validated.ok) {
-    return res.status(400).json({ error: validated.error });
+    return res.status(validated.status || 400).json({ error: validated.error || 'Invalid request payload' });
   }
 
   const openAiRequest = validated.sanitized;
@@ -371,7 +369,7 @@ export default async function handler(req, res) {
         totalMs: nowMs() - requestStartedAt,
         ...lookupMetrics,
       });
-      return res.status(upstream.status).json(data);
+      return res.status(upstream.status).json({ error: 'Upstream service error' });
     }
   } catch (err) {
     res.setHeader('x-cache-status', 'proxy-error');
@@ -381,6 +379,6 @@ export default async function handler(req, res) {
       ...lookupMetrics,
       error: err.message || 'Proxy error',
     });
-    return res.status(500).json({ error: err.message || "Proxy error" });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }
