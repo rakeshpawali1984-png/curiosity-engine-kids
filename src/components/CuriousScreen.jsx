@@ -4,6 +4,8 @@ import ExplanationScreen from "./ExplanationScreen";
 import ActivityScreen from "./ActivityScreen";
 import QuizScreen from "./QuizScreen";
 import BadgeScreen from "./BadgeScreen";
+import FamilyTopBar from "./FamilyTopBar";
+import { hasSupabaseConfig, supabase } from "../lib/supabaseClient";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // LAYER 1 — INPUT GUARD (regex + l33tspeak normalisation)
@@ -118,10 +120,10 @@ You will be given a topic. Return ONLY this JSON (nothing else):
   },
   "quiz": [
     { "question": "Question 1", "type": "mcq", "options": ["Wrong", "Correct", "Wrong"], "answer": 1 },
-    { "question": "Question 2", "type": "mcq", "options": ["Correct", "Wrong", "Wrong"], "answer": 0 },
+    { "question": "Question 2", "type": "truefalse", "answer": true },
     { "question": "Question 3", "type": "mcq", "options": ["Wrong", "Wrong", "Correct"], "answer": 2 },
-    { "question": "Question 4", "type": "mcq", "options": ["Wrong", "Correct", "Wrong"], "answer": 1 },
-    { "question": "Question 5", "type": "mcq", "options": ["Wrong", "Wrong", "Correct"], "answer": 2 }
+    { "question": "Question 4", "type": "truefalse", "answer": false },
+    { "question": "Question 5", "type": "mcq", "options": ["Wrong", "Correct", "Wrong"], "answer": 1 }
   ],
   "curiosity": [
     "A surprising wow-fact most people don't know (1 sentence)",
@@ -132,9 +134,12 @@ You will be given a topic. Return ONLY this JSON (nothing else):
 }
 
 IMPORTANT for quiz:
-- Place the correct answer at varied positions (not always position 0)
-- The "answer" value must equal the index of the correct option in the options array
-- Each question must have exactly 3 options
+- Return exactly 5 questions
+- Use a mixed format: exactly 3 "mcq" and exactly 2 "truefalse"
+- Do not use "open" questions
+- For "mcq": provide exactly 3 options and use an integer answer index (0, 1, or 2)
+- For "truefalse": do not include options; answer must be boolean true or false
+- Place the MCQ correct answer at varied positions (not always position 0)
 
 FEW-SHOT EXAMPLE (topic: "gravity"):
 {
@@ -149,9 +154,9 @@ FEW-SHOT EXAMPLE (topic: "gravity"):
   },
   "quiz": [
     { "question": "What force pulls things towards the ground?", "type": "mcq", "options": ["Wind", "Gravity", "Magnetism"], "answer": 1 },
-    { "question": "What would happen to an apple on the Moon?", "type": "mcq", "options": ["Fall more slowly than on Earth", "Fall faster than on Earth", "Float away into space"], "answer": 0 },
+    { "question": "A rocket must push harder than gravity to rise upward.", "type": "truefalse", "answer": true },
     { "question": "Gravity on Earth pulls things towards...", "type": "mcq", "options": ["The sky", "The nearest tree", "The centre of the Earth"], "answer": 2 },
-    { "question": "Which scientist is famous for figuring out gravity?", "type": "mcq", "options": ["Albert Einstein", "Isaac Newton", "Galileo Galilei"], "answer": 1 },
+    { "question": "Objects with more mass feel less pull from Earth's gravity.", "type": "truefalse", "answer": false },
     { "question": "What keeps the Moon orbiting around the Earth?", "type": "mcq", "options": ["A giant string", "The Sun's light", "Gravity"], "answer": 2 }
   ],
   "curiosity": [
@@ -224,6 +229,20 @@ const LOCAL_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 const IS_DEV = import.meta.env.DEV;
 const USE_LOCAL_PROXY = import.meta.env.VITE_USE_LOCAL_PROXY === "true";
 
+async function getProxyHeaders() {
+  const headers = { "Content-Type": "application/json" };
+  if (!hasSupabaseConfig || !supabase) {
+    return headers;
+  }
+
+  const { data } = await supabase.auth.getSession();
+  const token = data?.session?.access_token;
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 async function callOpenAI(systemPrompt, userContent, temperature = 0.7, model = "gpt-4.1-mini", jsonMode = false, promptType = "generic") {
   const label = `[WonderEngine] ${model}`;
   const t0 = performance.now();
@@ -233,22 +252,24 @@ async function callOpenAI(systemPrompt, userContent, temperature = 0.7, model = 
   const url = useProxy ? OPENAI_PROXY : OPENAI_DIRECT;
   console.log(`${label} → route=${useProxy ? "proxy" : "direct"} url=${url}`);
   const headers = useProxy
-    ? { "Content-Type": "application/json" }
+    ? await getProxyHeaders()
     : { "Content-Type": "application/json", "Authorization": `Bearer ${LOCAL_API_KEY}` };
+
+  const requestBody = {
+    ...(useProxy ? {} : { model }),
+    ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userContent },
+    ],
+    temperature,
+    cacheMeta: { promptType },
+  };
 
   const res = await fetch(url, {
     method: "POST",
     headers,
-    body: JSON.stringify({
-      model,
-      ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userContent },
-      ],
-      temperature,
-      cacheMeta: { promptType },
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   const tFetch = performance.now();
@@ -314,6 +335,50 @@ function shuffleQuiz(quiz) {
   });
 }
 
+function normalizeQuizType(type) {
+  const t = String(type || "").toLowerCase().replace(/[^a-z]/g, "");
+  if (t === "mcq" || t === "multiplechoice") return "mcq";
+  if (t === "truefalse" || t === "boolean") return "truefalse";
+  return "mcq";
+}
+
+function normalizeQuiz(quiz) {
+  const rows = Array.isArray(quiz) ? quiz : [];
+  return rows
+    .map((row) => {
+      const question = typeof row?.question === "string" ? row.question.trim() : "";
+      if (!question) return null;
+
+      const type = normalizeQuizType(row?.type);
+
+      if (type === "truefalse") {
+        const raw = row?.answer;
+        const answer =
+          typeof raw === "boolean"
+            ? raw
+            : String(raw || "").toLowerCase().trim() === "true";
+        return { question, type: "truefalse", answer };
+      }
+
+      const options = Array.isArray(row?.options)
+        ? row.options
+            .filter((option) => typeof option === "string" && option.trim())
+            .map((option) => option.trim())
+            .slice(0, 3)
+        : [];
+      if (options.length < 2) return null;
+
+      let answer = Number(row?.answer);
+      if (!Number.isInteger(answer) || answer < 0 || answer >= options.length) {
+        answer = 0;
+      }
+
+      return { question, type: "mcq", options, answer };
+    })
+    .filter(Boolean)
+    .slice(0, 5);
+}
+
 function parseFast(raw) {
   const obj = parseJsonSafe(raw, "parseFast");
   const missing = [];
@@ -334,7 +399,7 @@ function parseDeep(raw) {
   if (!Array.isArray(obj.quiz)      || !obj.quiz.length)                    missing.push("quiz");
   if (!Array.isArray(obj.curiosity) || !obj.curiosity.length)               missing.push("curiosity");
   if (missing.length) throw new Error("Deep response missing: " + missing.join(", "));
-  obj.quiz = shuffleQuiz(obj.quiz);
+  obj.quiz = shuffleQuiz(normalizeQuiz(obj.quiz));
   return obj;
 }
 
@@ -502,7 +567,13 @@ function LoadingCard() {
   );
 }
 
-export default function CuriousScreen() {
+export default function CuriousScreen({
+  activeChild,
+  onOpenJourney,
+  onOpenParentPortal,
+  onRecordSearch,
+  onAwardBadge,
+}) {
   const [input, setInput] = useState("");
   // screen: ask | loading | blocked | error | story | explanation | activity | quiz | badge | curiosity
   const [screen, setScreen] = useState("ask");
@@ -511,6 +582,7 @@ export default function CuriousScreen() {
   // deepReady: true once activity/quiz/curiosity have arrived from the background call
   const [deepReady, setDeepReady] = useState(false);
   const deepPromiseRef = useRef(null);
+  const activeSearchIdRef = useRef(null);
 
   const goAsk = () => {
     setScreen("ask");
@@ -518,6 +590,7 @@ export default function CuriousScreen() {
     setErrorMsg("");
     setDeepReady(false);
     deepPromiseRef.current = null;
+    activeSearchIdRef.current = null;
   };
 
   const triggerSearch = async (query) => {
@@ -528,9 +601,13 @@ export default function CuriousScreen() {
     setErrorMsg("");
     setDeepReady(false);
     deepPromiseRef.current = null;
+    activeSearchIdRef.current = null;
     setScreen("loading");
     window.scrollTo(0, 0);
     try {
+      if (onRecordSearch) {
+        activeSearchIdRef.current = await onRecordSearch(query);
+      }
       const { partial, deepPromise } = await runPipeline(query, () => {});
       const partialTopic = buildPartialTopic(partial, query);
       setTopic(partialTopic);
@@ -572,6 +649,12 @@ export default function CuriousScreen() {
   const wrapper = (children) => (
     <div className="min-h-[100dvh] bg-gradient-to-br from-sky-100 via-purple-50 to-pink-100">
       <div className="max-w-lg mx-auto min-h-[100dvh] px-4 pt-4 pb-8">
+        <FamilyTopBar
+          activeChild={activeChild}
+          onOpenJourney={onOpenJourney}
+          onOpenParentPortal={onOpenParentPortal}
+          currentView="app"
+        />
         {children}
       </div>
     </div>
@@ -608,7 +691,19 @@ export default function CuriousScreen() {
         </div>
       );
     }
-    return wrapper(<QuizScreen key={topic.id} topic={topic} onComplete={() => setScreen("badge")} onHome={goAsk} />);
+    return wrapper(
+      <QuizScreen
+        key={topic.id}
+        topic={topic}
+        onComplete={async () => {
+          setScreen("badge");
+          if (onAwardBadge) {
+            await onAwardBadge(topic?.badge, activeSearchIdRef.current);
+          }
+        }}
+        onHome={goAsk}
+      />
+    );
   }
 
   if (screen === "badge")
@@ -695,6 +790,12 @@ export default function CuriousScreen() {
   return (
     <div className="min-h-[100dvh] bg-gradient-to-br from-sky-100 via-purple-50 to-pink-100">
       <div className="max-w-lg mx-auto min-h-[100dvh] px-4 pt-4 pb-8">
+        <FamilyTopBar
+          activeChild={activeChild}
+          onOpenJourney={onOpenJourney}
+          onOpenParentPortal={onOpenParentPortal}
+          currentView="app"
+        />
 
         {/* Header */}
         <div className="text-center mb-6 mt-4">
