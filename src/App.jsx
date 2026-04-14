@@ -1,4 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+
+// Module-level dedup: Supabase fires SIGNED_IN twice during OAuth flows.
+// Track which user IDs already had a welcome email queued this page session.
+const _welcomeEmailSent = new Set();
 import { topics } from "./data/topics";
 import { topicsSparkRaw } from "./data/topics-spark.js";
 import { normalizeTopicsSpark } from "./data/normalize";
@@ -156,10 +160,11 @@ export default function App() {
       }
       // Send welcome email on first sign-up (created_at within last 60 s)
       if (_event === "SIGNED_IN") {
-        const createdAt = nextSession.user.created_at;
+        const user = nextSession.user;
+        const createdAt = user.created_at;
         const isNewUser = createdAt && Date.now() - new Date(createdAt).getTime() < 60_000;
-        if (isNewUser) {
-          const user = nextSession.user;
+        if (isNewUser && !_welcomeEmailSent.has(user.id)) {
+          _welcomeEmailSent.add(user.id);
           const name =
             user.user_metadata?.full_name ||
             user.user_metadata?.name ||
