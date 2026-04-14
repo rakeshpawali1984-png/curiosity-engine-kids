@@ -579,12 +579,42 @@ export default function App() {
   );
 }
 
+const PREVIEW_EXAMPLES = [
+  {
+    emoji: "🌟",
+    question: "Why do stars twinkle?",
+    story:
+      "Imagine stars like tiny lanterns in the sky. Their light travels a very long way, and when it moves through the moving air around Earth, it wiggles a little — that's what makes stars look like they're twinkling!",
+  },
+  {
+    emoji: "🏏",
+    question: "Why does a cricket ball swing?",
+    story:
+      "Think of the ball like a little airplane. One side is kept shiny and smooth, the other gets rough. When a fast bowler bowls, the rough side catches more air and the ball curves through the sky — that's swing!",
+  },
+  {
+    emoji: "🦕",
+    question: "Why did dinosaurs get so big?",
+    story:
+      "Millions of years ago, Earth had more oxygen in the air and HUGE forests to eat! More food and easier breathing meant dinosaurs could just keep growing… and growing… and growing. Some ended up as tall as a four-storey building!",
+  },
+  {
+    emoji: "🌊",
+    question: "Why is the ocean salty?",
+    story:
+      "Rivers carry tiny bits of salt from rocks on land, all the way to the ocean. The ocean never drains, so the salt just keeps collecting over millions of years. If you dried out all the world's oceans, you'd have enough salt to cover every continent!",
+  },
+];
+
 function LandingPage() {
   const [showSafetyModal, setShowSafetyModal] = useState(false);
+  const [previewIndex, setPreviewIndex] = useState(0);
 
   const handleTryNow = () => {
     window.location.href = "/app";
   };
+
+  const goTo = (i) => setPreviewIndex((i + PREVIEW_EXAMPLES.length) % PREVIEW_EXAMPLES.length);
 
   return (
     <div className="min-h-[100dvh] bg-gradient-to-br from-sky-100 via-purple-50 to-pink-100 text-slate-800">
@@ -607,12 +637,31 @@ function LandingPage() {
           <p className="mt-1 text-xs sm:text-sm text-slate-400 italic">No ads. No distractions. Just curiosity.</p>
 
           <div className="mt-7 max-w-md mx-auto text-left rounded-2xl border border-purple-100 bg-white shadow-sm p-4 sm:p-5">
-            <p className="text-[11px] font-extrabold uppercase tracking-wider text-purple-500 mb-2">App preview</p>
-            <p className="text-sm font-black text-slate-800 mb-2">Why do stars twinkle?</p>
-            <p className="text-sm text-slate-600 leading-relaxed">
-              Imagine stars like tiny lanterns in the sky. Their light travels a very long way, and when it moves through moving air around Earth,
-              the light wiggles a little. That makes stars look like they are twinkling.
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[11px] font-extrabold uppercase tracking-wider text-purple-500">App preview</p>
+              <div className="flex items-center gap-2">
+                {PREVIEW_EXAMPLES.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => goTo(i)}
+                    className={`w-2 h-2 rounded-full transition-colors ${i === previewIndex ? "bg-purple-500" : "bg-purple-200 hover:bg-purple-300"}`}
+                    aria-label={`Preview ${i + 1}`}
+                  />
+                ))}
+              </div>
+            </div>
+            <p className="text-sm font-black text-slate-800 mb-2">
+              {PREVIEW_EXAMPLES[previewIndex].emoji} {PREVIEW_EXAMPLES[previewIndex].question}
             </p>
+            <p className="text-sm text-slate-600 leading-relaxed mb-3">
+              {PREVIEW_EXAMPLES[previewIndex].story}
+            </p>
+            <button
+              onClick={() => goTo(previewIndex + 1)}
+              className="text-xs font-bold text-purple-500 hover:text-purple-700 transition-colors"
+            >
+              Try another example →
+            </button>
           </div>
         </section>
 
@@ -620,13 +669,15 @@ function LandingPage() {
           <h2 className="text-2xl sm:text-3xl font-black text-purple-800 mb-5">How it works</h2>
           <div className="grid gap-4 sm:grid-cols-3">
             {[
-              "Ask a question",
-              "Learn through a story",
-              "Keep the curiosity going",
-            ].map((step, index) => (
-              <div key={step} className="rounded-2xl bg-purple-50 border border-purple-100 p-4">
-                <p className="text-xs font-extrabold uppercase tracking-wider text-purple-500 mb-1">Step {index + 1}</p>
-                <p className="font-bold text-slate-700">{step}</p>
+              { icon: "💬", title: "Ask a question", desc: "Type anything your child is curious about — no topic is too big or too small." },
+              { icon: "📖", title: "Learn through a story", desc: "Curiosity Engine turns the answer into a simple, age-appropriate story that sticks." },
+              { icon: "🧪", title: "Try it in the real world", desc: "Spark curiosity beyond the screen with hands-on activities kids can try in the real world." },
+            ].map(({ icon, title, desc }, index) => (
+              <div key={title} className="rounded-2xl bg-purple-50 border border-purple-100 p-4">
+                <p className="text-xs font-extrabold uppercase tracking-wider text-purple-500 mb-2">Step {index + 1}</p>
+                <p className="text-2xl mb-2">{icon}</p>
+                <p className="font-bold text-slate-800 mb-1">{title}</p>
+                <p className="text-sm text-slate-500 leading-snug">{desc}</p>
               </div>
             ))}
           </div>
@@ -665,12 +716,14 @@ function LandingPage() {
               <p className="mt-1 text-xs text-slate-500">Less than a coffee per month ☕</p>
             </div>
           </div>
-          <button
-            onClick={handleTryNow}
-            className="inline-flex items-center justify-center rounded-2xl bg-purple-600 hover:bg-purple-700 text-white text-base sm:text-lg font-bold px-6 py-3 transition-transform active:scale-95"
-          >
-            Unlock unlimited curiosity
-          </button>
+          <div className="flex justify-center">
+            <button
+              onClick={handleTryNow}
+              className="inline-flex items-center justify-center rounded-2xl bg-purple-600 hover:bg-purple-700 text-white text-base sm:text-lg font-bold px-6 py-3 transition-transform active:scale-95"
+            >
+              Unlock unlimited curiosity
+            </button>
+          </div>
         </section>
 
         <footer className="text-sm text-slate-500 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between pb-2">
