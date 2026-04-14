@@ -702,6 +702,27 @@ function LandingPage() {
           </ul>
         </section>
 
+        <section className="bg-white rounded-3xl border border-purple-100 p-6 sm:p-8 mb-6">
+          <h2 className="text-2xl sm:text-3xl font-black text-purple-800 mb-4">Our Story</h2>
+          <h3 className="text-lg sm:text-xl font-extrabold text-slate-800 mb-3">The Spark Behind Curiosity Engine</h3>
+          <div className="space-y-3 text-slate-600 leading-relaxed">
+            <p>
+              One Saturday in Melbourne, Shlok asked me, "Dad, how does a ball swing in the air?"
+              Soon after, Swara asked her own big "why." In that moment, I felt what many parents
+              feel. Kids are deeply curious, but the internet is often noisy, distracting, and not
+              truly built for them.
+            </p>
+            <p>
+              So I started building Curiosity Engine at our kitchen table in Melbourne. I wanted a
+              calm, safe place where questions become stories, simple explanations, and real-world
+              activities children can actually try.
+            </p>
+            <p>
+              What began for Shlok and Swara grew into a family project for families like ours.
+            </p>
+          </div>
+        </section>
+
         <section className="bg-white rounded-3xl border border-purple-100 p-6 sm:p-8 mb-8">
           <h2 className="text-2xl sm:text-3xl font-black text-purple-800 mb-5">Simple pricing</h2>
           <div className="grid gap-4 sm:grid-cols-2 mb-6">
