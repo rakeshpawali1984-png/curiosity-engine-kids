@@ -5,6 +5,7 @@
 import { getCache, setCache } from './cache.js';
 import { parseBearerToken, validateSupabaseToken } from './auth.js';
 import { enforceDailyQuestionQuota } from './subscription.js';
+import { resolvePromptTemplate } from './promptTemplates.js';
 
 const CACHE_ASYNC_STORE = (process.env.CACHE_ASYNC_STORE || '').trim() === 'true';
 const CACHE_READ_ENABLED = (process.env.CACHE_READ_ENABLED || '').trim() === 'true';
@@ -113,7 +114,7 @@ function invalidPayload() {
   return { ok: false, status: 400, error: 'Invalid request payload' };
 }
 
-function sanitizeOpenAiRequest(rawBody) {
+async function sanitizeOpenAiRequest(rawBody) {
   if (!rawBody || typeof rawBody !== 'object') {
     return invalidPayload();
   }
@@ -127,16 +128,24 @@ function sanitizeOpenAiRequest(rawBody) {
     return invalidPayload();
   }
 
-  if (!Array.isArray(rawBody.messages) || rawBody.messages.length === 0) {
-    return invalidPayload();
+  let messagesInput = null;
+  if (typeof rawBody.promptTemplateKey === 'string' && typeof rawBody.userContent === 'string') {
+    const systemPrompt = await resolvePromptTemplate(rawBody.promptTemplateKey);
+    if (!systemPrompt) {
+      return invalidPayload();
+    }
+    messagesInput = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: rawBody.userContent },
+    ];
   }
 
-  if (rawBody.messages.length > OPENAI_MAX_MESSAGE_COUNT) {
+  if (!Array.isArray(messagesInput) || messagesInput.length === 0 || messagesInput.length > OPENAI_MAX_MESSAGE_COUNT) {
     return invalidPayload();
   }
 
   const messages = [];
-  for (const message of rawBody.messages) {
+  for (const message of messagesInput) {
     const role = String(message?.role || '');
     if (!['system', 'user', 'assistant'].includes(role)) {
       return invalidPayload();
@@ -240,7 +249,7 @@ export default async function handler(req, res) {
 
   const requestStartedAt = nowMs();
   const requestId = createRequestId();
-  const validated = sanitizeOpenAiRequest(req.body || {});
+  const validated = await sanitizeOpenAiRequest(req.body || {});
   if (!validated.ok) {
     return res.status(validated.status || 400).json({ error: validated.error || 'Invalid request payload' });
   }
