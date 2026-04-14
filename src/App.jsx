@@ -81,167 +81,6 @@ export default function App() {
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
-  if (isDemoRoute) {
-    return (
-      <MainApp
-        activeChild={{ name: "Demo Explorer", avatar_emoji: "🧠" }}
-        demoMode
-        onAskGrownUp={() => {
-          navigateTo("/");
-        }}
-      />
-    );
-  }
-
-  if (isLandingRoute) {
-    return <LandingPage />;
-  }
-
-  if (isPrivacyRoute) {
-    return (
-      <LegalScreen
-        title="Privacy Policy"
-        updated="Last updated: April 2026"
-        intro="We care about your child’s safety and privacy. This app is designed to collect as little data as possible."
-        sections={[
-          {
-            heading: "1. Information We Collect",
-            body: "We collect only what is needed to provide the service:",
-            items: [
-              "Parent account information (such as email via login)",
-              "Child profiles created by parents (name or nickname only)",
-              "Questions asked within the app (to generate responses)",
-              "Subscription and payment information (handled securely by Stripe)",
-            ],
-          },
-          {
-            heading: "2. What We Do Not Collect",
-            items: [
-              "We do not collect personal contact details directly from children",
-              "We do not intentionally collect precise location data",
-              "We do not show ads",
-              "We do not sell personal data",
-            ],
-            body: "We only share data with trusted service providers needed to operate the service, such as authentication, hosting, and payments.",
-          },
-          {
-            heading: "3. How We Use Data",
-            body: "We use data to:",
-            items: [
-              "Provide answers and learning experiences",
-              "Improve safety and response quality",
-              "Manage subscriptions and access",
-            ],
-          },
-          {
-            heading: "4. Children’s Privacy",
-            body: "Parents create and control all child profiles. Children are not required to provide personal information to use the app.",
-          },
-          {
-            heading: "5. Data Control",
-            body: "Parents can:",
-            items: [
-              "Delete child profiles at any time",
-              "Request deletion of their data, subject to legal, fraud-prevention, and billing record retention requirements",
-            ],
-          },
-          {
-            heading: "6. Third-Party Services",
-            body: "We use trusted services for authentication, hosting, and payments (via Stripe). These providers handle data securely.",
-          },
-          {
-            heading: "7. Contact",
-            body: "If you have questions, contact us at hello@whyroo.com.",
-          },
-        ]}
-      />
-    );
-  }
-
-  if (isTermsRoute) {
-    return (
-      <LegalScreen
-        title="Terms of Use"
-        updated="Last updated: April 2026"
-        intro="By creating an account or using Whyroo, you agree to these Terms of Use. Please read them carefully. These terms apply to parents and guardians who register accounts on behalf of children."
-        sections={[
-          {
-            heading: "1. Who Can Use This Service",
-            body: "Whyroo is designed for children aged 4–12, under direct parental or guardian supervision. To create an account, you must:",
-            items: [
-              "Be at least 18 years old",
-              "Have legal authority to consent on behalf of the child",
-              "Ensure the child uses the app with your knowledge and oversight",
-            ],
-          },
-          {
-            heading: "2. Parent and Guardian Responsibilities",
-            body: "As the account holder, you are responsible for:",
-            items: [
-              "All activity that occurs under your account",
-              "Supervising your child's use of the app",
-              "Keeping your login credentials secure",
-              "Reviewing AI-generated content to ensure it meets your family's standards",
-              "Contacting us immediately if you suspect unauthorised account use",
-            ],
-          },
-          {
-            heading: "3. Subscriptions and Billing",
-            body: "Whyroo offers a free tier and a paid subscription plan.",
-            items: [
-              "Paid subscriptions are billed monthly or annually and renew automatically until cancelled",
-              "You can cancel at any time from the parent portal — cancellation takes effect at the end of the current billing period",
-              "Prices are displayed in Australian dollars (AUD) and include GST where applicable",
-              "We reserve the right to update pricing with reasonable notice",
-              "Refunds are not provided for partial billing periods, except where required by Australian Consumer Law",
-            ],
-          },
-          {
-            heading: "4. Content and Intellectual Property",
-            body: "All content generated by Whyroo — including stories, explanations, and quiz questions — is produced with the assistance of AI and is provided for personal, non-commercial educational use only.",
-            items: [
-              "You may not reproduce, distribute, or sell content from the app without our written consent",
-              "Whyroo retains ownership of the app, its design, and its underlying systems",
-              "You retain no rights to AI-generated content beyond personal use",
-            ],
-          },
-          {
-            heading: "5. Acceptable Use",
-            body: "You agree not to use Whyroo to:",
-            items: [
-              "Submit harmful, abusive, or inappropriate content",
-              "Attempt to bypass safety filters or prompt the AI to produce unsafe content",
-              "Reverse-engineer, scrape, or copy the app's code or systems",
-              "Use the service for any commercial purpose without permission",
-              "Violate any applicable laws or regulations",
-            ],
-          },
-          {
-            heading: "6. Child Safety",
-            body: "We have implemented multi-layer safety measures to keep content appropriate for children. However, no system is perfect. We strongly encourage parents to:",
-            items: [
-              "Review conversations and generated content periodically",
-              "Use the app together with your child when possible",
-              "Report any content that seems inappropriate via hello@whyroo.com",
-            ],
-          },
-          {
-            heading: "7. Limitation of Liability",
-            body: "To the extent permitted by law, Whyroo and its operators are not liable for any indirect, incidental, or consequential damages arising from your use of the service. We do not guarantee that the app will be error-free or uninterrupted. Nothing in these terms limits your rights under the Australian Consumer Law.",
-          },
-          {
-            heading: "8. Changes to These Terms",
-            body: "We may update these Terms of Use from time to time. When we do, we will update the date at the top of this page. Continued use of the service after changes are posted constitutes acceptance of the revised terms. For significant changes, we will notify you by email.",
-          },
-          {
-            heading: "9. Contact",
-            body: "If you have questions about these terms, please contact us at hello@whyroo.com.",
-          },
-        ]}
-      />
-    );
-  }
-
   const activeChild = useMemo(
     () => children.find((c) => c.id === activeChildId) || null,
     [children, activeChildId]
@@ -474,6 +313,167 @@ export default function App() {
     clearPinGuard(session.user.id);
     return { ok: true };
   };
+
+  let staticRouteContent = null;
+
+  if (isDemoRoute) {
+    staticRouteContent = (
+      <MainApp
+        activeChild={{ name: "Demo Explorer", avatar_emoji: "🧠" }}
+        demoMode
+        onAskGrownUp={() => {
+          navigateTo("/");
+        }}
+      />
+    );
+  } else if (isLandingRoute) {
+    staticRouteContent = <LandingPage />;
+  } else if (isPrivacyRoute) {
+    staticRouteContent = (
+      <LegalScreen
+        title="Privacy Policy"
+        updated="Last updated: April 2026"
+        intro="We care about your child’s safety and privacy. This app is designed to collect as little data as possible."
+        sections={[
+          {
+            heading: "1. Information We Collect",
+            body: "We collect only what is needed to provide the service:",
+            items: [
+              "Parent account information (such as email via login)",
+              "Child profiles created by parents (name or nickname only)",
+              "Questions asked within the app (to generate responses)",
+              "Subscription and payment information (handled securely by Stripe)",
+            ],
+          },
+          {
+            heading: "2. What We Do Not Collect",
+            items: [
+              "We do not collect personal contact details directly from children",
+              "We do not intentionally collect precise location data",
+              "We do not show ads",
+              "We do not sell personal data",
+            ],
+            body: "We only share data with trusted service providers needed to operate the service, such as authentication, hosting, and payments.",
+          },
+          {
+            heading: "3. How We Use Data",
+            body: "We use data to:",
+            items: [
+              "Provide answers and learning experiences",
+              "Improve safety and response quality",
+              "Manage subscriptions and access",
+            ],
+          },
+          {
+            heading: "4. Children’s Privacy",
+            body: "Parents create and control all child profiles. Children are not required to provide personal information to use the app.",
+          },
+          {
+            heading: "5. Data Control",
+            body: "Parents can:",
+            items: [
+              "Delete child profiles at any time",
+              "Request deletion of their data, subject to legal, fraud-prevention, and billing record retention requirements",
+            ],
+          },
+          {
+            heading: "6. Third-Party Services",
+            body: "We use trusted services for authentication, hosting, and payments (via Stripe). These providers handle data securely.",
+          },
+          {
+            heading: "7. Contact",
+            body: "If you have questions, contact us at hello@whyroo.com.",
+          },
+        ]}
+      />
+    );
+  } else if (isTermsRoute) {
+    staticRouteContent = (
+      <LegalScreen
+        title="Terms of Use"
+        updated="Last updated: April 2026"
+        intro="By creating an account or using Whyroo, you agree to these Terms of Use. Please read them carefully. These terms apply to parents and guardians who register accounts on behalf of children."
+        sections={[
+          {
+            heading: "1. Who Can Use This Service",
+            body: "Whyroo is designed for children aged 4–12, under direct parental or guardian supervision. To create an account, you must:",
+            items: [
+              "Be at least 18 years old",
+              "Have legal authority to consent on behalf of the child",
+              "Ensure the child uses the app with your knowledge and oversight",
+            ],
+          },
+          {
+            heading: "2. Parent and Guardian Responsibilities",
+            body: "As the account holder, you are responsible for:",
+            items: [
+              "All activity that occurs under your account",
+              "Supervising your child's use of the app",
+              "Keeping your login credentials secure",
+              "Reviewing AI-generated content to ensure it meets your family's standards",
+              "Contacting us immediately if you suspect unauthorised account use",
+            ],
+          },
+          {
+            heading: "3. Subscriptions and Billing",
+            body: "Whyroo offers a free tier and a paid subscription plan.",
+            items: [
+              "Paid subscriptions are billed monthly or annually and renew automatically until cancelled",
+              "You can cancel at any time from the parent portal — cancellation takes effect at the end of the current billing period",
+              "Prices are displayed in Australian dollars (AUD) and include GST where applicable",
+              "We reserve the right to update pricing with reasonable notice",
+              "Refunds are not provided for partial billing periods, except where required by Australian Consumer Law",
+            ],
+          },
+          {
+            heading: "4. Content and Intellectual Property",
+            body: "All content generated by Whyroo — including stories, explanations, and quiz questions — is produced with the assistance of AI and is provided for personal, non-commercial educational use only.",
+            items: [
+              "You may not reproduce, distribute, or sell content from the app without our written consent",
+              "Whyroo retains ownership of the app, its design, and its underlying systems",
+              "You retain no rights to AI-generated content beyond personal use",
+            ],
+          },
+          {
+            heading: "5. Acceptable Use",
+            body: "You agree not to use Whyroo to:",
+            items: [
+              "Submit harmful, abusive, or inappropriate content",
+              "Attempt to bypass safety filters or prompt the AI to produce unsafe content",
+              "Reverse-engineer, scrape, or copy the app's code or systems",
+              "Use the service for any commercial purpose without permission",
+              "Violate any applicable laws or regulations",
+            ],
+          },
+          {
+            heading: "6. Child Safety",
+            body: "We have implemented multi-layer safety measures to keep content appropriate for children. However, no system is perfect. We strongly encourage parents to:",
+            items: [
+              "Review conversations and generated content periodically",
+              "Use the app together with your child when possible",
+              "Report any content that seems inappropriate via hello@whyroo.com",
+            ],
+          },
+          {
+            heading: "7. Limitation of Liability",
+            body: "To the extent permitted by law, Whyroo and its operators are not liable for any indirect, incidental, or consequential damages arising from your use of the service. We do not guarantee that the app will be error-free or uninterrupted. Nothing in these terms limits your rights under the Australian Consumer Law.",
+          },
+          {
+            heading: "8. Changes to These Terms",
+            body: "We may update these Terms of Use from time to time. When we do, we will update the date at the top of this page. Continued use of the service after changes are posted constitutes acceptance of the revised terms. For significant changes, we will notify you by email.",
+          },
+          {
+            heading: "9. Contact",
+            body: "If you have questions about these terms, please contact us at hello@whyroo.com.",
+          },
+        ]}
+      />
+    );
+  }
+
+  if (staticRouteContent) {
+    return staticRouteContent;
+  }
 
   if (!hasSupabaseConfig) {
     return (

@@ -70,6 +70,7 @@ const PROMPT_KEY_BOUNCER = "bouncer_system";
 
 
 const OPENAI_PROXY = "/api/spark";
+const PARENT_HINT_DISMISSED_KEY = "whyroo_parent_hint_dismissed";
 
 async function getProxyHeaders() {
   const headers = { "Content-Type": "application/json" };
@@ -616,6 +617,7 @@ export default function CuriousScreen({
   const [deepReady, setDeepReady] = useState(false);
   const [billingStatus, setBillingStatus] = useState(null);
   const [billingLoading, setBillingLoading] = useState(false);
+  const [showParentHint, setShowParentHint] = useState(false);
   const deepPromiseRef = useRef(null);
   const bouncerPromiseRef = useRef(null);
   const activeSearchIdRef = useRef(null);
@@ -635,6 +637,23 @@ export default function CuriousScreen({
   useEffect(() => {
     refreshBillingStatus();
   }, []);
+
+  useEffect(() => {
+    try {
+      setShowParentHint(sessionStorage.getItem(PARENT_HINT_DISMISSED_KEY) !== "true");
+    } catch {
+      setShowParentHint(true);
+    }
+  }, []);
+
+  const dismissParentHint = () => {
+    setShowParentHint(false);
+    try {
+      sessionStorage.setItem(PARENT_HINT_DISMISSED_KEY, "true");
+    } catch {
+      // Ignore storage failures and just hide it for this render.
+    }
+  };
 
   const goAsk = () => {
     setScreen("ask");
@@ -910,6 +929,22 @@ export default function CuriousScreen({
           onOpenParentPortal={onOpenParentPortal}
           currentView="app"
         />
+
+        {screen === "ask" && showParentHint && (
+          <div className="mb-4 rounded-2xl border border-indigo-100 bg-indigo-50/90 px-4 py-3 flex items-start justify-between gap-3">
+            <p className="text-sm text-indigo-700 font-semibold leading-snug">
+              Parents: press and hold the child name above to open settings.
+            </p>
+            <button
+              type="button"
+              onClick={dismissParentHint}
+              className="shrink-0 text-xs font-bold text-indigo-500 hover:text-indigo-700"
+              aria-label="Dismiss parent hint"
+            >
+              Got it
+            </button>
+          </div>
+        )}
 
         {/* Header */}
         <div className="text-center mb-6 mt-4">
