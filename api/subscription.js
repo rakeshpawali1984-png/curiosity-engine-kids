@@ -21,6 +21,18 @@ function isPaidStatus(status) {
   return s === 'active';
 }
 
+function hasActiveFullOverride(override) {
+  if (!override) return false;
+  const level = String(override.access_level || '').toLowerCase();
+  if (level !== 'full') return false;
+  if (!override.expires_at) return true;
+  return new Date(override.expires_at).getTime() > Date.now();
+}
+
+function isMissingOverridesTableError(error) {
+  return error?.code === '42P01' && String(error?.message || '').includes('parent_access_overrides');
+}
+
 async function ensureParentRow(client, userId, email) {
   if (!userId || !email) return;
   await client.query(
@@ -38,24 +50,61 @@ export async function getBillingStatus(userId) {
   const date = todayUtcDateString();
 
   try {
-    const parentRes = await client.query(
-      `
-        select
-          coalesce(plan_key, 'free') as plan_key,
-          coalesce(subscription_status, 'free') as subscription_status,
-          subscription_current_period_end
-        from public.parents
-        where id = $1
-        limit 1
-      `,
-      [userId]
-    );
+    let parentRes;
+    try {
+      parentRes = await client.query(
+        `
+          select
+            coalesce(p.plan_key, 'free') as plan_key,
+            coalesce(p.subscription_status, 'free') as subscription_status,
+            p.subscription_current_period_end,
+            o.access_level as override_access_level,
+            o.expires_at as override_expires_at
+          from (select $1::uuid as user_id) u
+          left join public.parents p
+            on p.id = u.user_id
+          left join public.parent_access_overrides o
+            on o.user_id = u.user_id
+          limit 1
+        `,
+        [userId]
+      );
+    } catch (error) {
+      if (!isMissingOverridesTableError(error)) throw error;
+      parentRes = await client.query(
+        `
+          select
+            coalesce(p.plan_key, 'free') as plan_key,
+            coalesce(p.subscription_status, 'free') as subscription_status,
+            p.subscription_current_period_end,
+            null::text as override_access_level,
+            null::timestamptz as override_expires_at
+          from (select $1::uuid as user_id) u
+          left join public.parents p
+            on p.id = u.user_id
+          limit 1
+        `,
+        [userId]
+      );
+    }
 
     const parent = parentRes.rows[0] || {
       plan_key: 'free',
       subscription_status: 'free',
       subscription_current_period_end: null,
+      override_access_level: null,
+      override_expires_at: null,
     };
+
+    const hasAccessOverride = hasActiveFullOverride({
+      access_level: parent.override_access_level,
+      expires_at: parent.override_expires_at,
+    });
+    const normalizedSubscription = normalizeSubscriptionStatus(parent.subscription_status);
+    const effectiveSubscriptionStatus = hasAccessOverride ? 'active' : normalizedSubscription;
+    const accessSource = hasAccessOverride
+      ? 'override'
+      : (isPaidStatus(normalizedSubscription) ? 'subscription' : 'free');
 
     const usageRes = await client.query(
       `
@@ -69,8 +118,11 @@ export async function getBillingStatus(userId) {
 
     return {
       planKey: parent.plan_key,
-      subscriptionStatus: normalizeSubscriptionStatus(parent.subscription_status),
+      subscriptionStatus: effectiveSubscriptionStatus,
       currentPeriodEnd: parent.subscription_current_period_end,
+      hasAccessOverride,
+      accessSource,
+      overrideExpiresAt: parent.override_expires_at,
       usedToday: usageRes.rows[0]?.used || 0,
       usageDate: date,
       resetAt: nextUtcMidnightIso(),
@@ -109,27 +161,54 @@ export async function enforceDailyQuestionQuota({
 
     await ensureParentRow(client, userId, email);
 
-    const parentRes = await client.query(
-      `
-        select
-          id,
-          coalesce(subscription_status, 'free') as subscription_status
-        from public.parents
-        where id = $1
-        for update
-      `,
-      [userId]
-    );
+    let parentRes;
+    try {
+      parentRes = await client.query(
+        `
+          select
+            p.id,
+            coalesce(p.subscription_status, 'free') as subscription_status,
+            exists (
+              select 1
+              from public.parent_access_overrides o
+              where o.user_id = p.id
+                and lower(o.access_level) = 'full'
+                and (o.expires_at is null or o.expires_at > now())
+            ) as has_access_override
+          from public.parents p
+          where p.id = $1
+          for update
+        `,
+        [userId]
+      );
+    } catch (error) {
+      if (!isMissingOverridesTableError(error)) throw error;
+      parentRes = await client.query(
+        `
+          select
+            p.id,
+            coalesce(p.subscription_status, 'free') as subscription_status,
+            false as has_access_override
+          from public.parents p
+          where p.id = $1
+          for update
+        `,
+        [userId]
+      );
+    }
 
     const parent = parentRes.rows[0];
     const subscriptionStatus = normalizeSubscriptionStatus(parent?.subscription_status || 'free');
+    const hasAccessOverride = Boolean(parent?.has_access_override);
 
-    if (isPaidStatus(subscriptionStatus)) {
+    if (isPaidStatus(subscriptionStatus) || hasAccessOverride) {
       await client.query('commit');
       return {
         allowed: true,
-        plan: 'paid',
-        subscriptionStatus,
+        plan: hasAccessOverride ? 'override' : 'paid',
+        subscriptionStatus: 'active',
+        hasAccessOverride,
+        accessSource: hasAccessOverride ? 'override' : 'subscription',
       };
     }
 

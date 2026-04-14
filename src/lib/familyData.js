@@ -125,7 +125,15 @@ export async function awardChildBadge(childId, badgeTitle, sourceSearchId = null
 export async function signInWithGoogle() {
   requireSupabase();
   const configuredRedirect = (import.meta.env.VITE_AUTH_REDIRECT_URL || "").trim();
-  const redirectTo = configuredRedirect || window.location.origin;
+  const origin = window.location.origin;
+  const fallbackRedirect = `${origin}/app`;
+
+  // Keep explicit redirect URLs, but avoid defaulting back to landing/home.
+  let redirectTo = configuredRedirect || fallbackRedirect;
+  if (redirectTo === origin || redirectTo === `${origin}/`) {
+    redirectTo = fallbackRedirect;
+  }
+
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: { redirectTo },

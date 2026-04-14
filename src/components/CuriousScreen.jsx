@@ -557,6 +557,7 @@ export default function CuriousScreen({
   };
 
   const isPaidPlan = billingStatus?.subscriptionStatus === "active";
+  const isOverrideAccess = billingStatus?.accessSource === "override";
   const usedToday = Number(billingStatus?.usedToday || 0);
   const dailyLimit = Number(billingStatus?.dailyLimit || 5);
   const questionsLeftToday = isPaidPlan ? null : Math.max(0, dailyLimit - usedToday);
@@ -765,7 +766,7 @@ export default function CuriousScreen({
             <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
               {billingLoading ? (
                 <p className="text-xs font-medium text-emerald-700">Checking questions left...</p>
-              ) : isPaidPlan ? (
+              ) : isOverrideAccess ? (
                 <p className="text-xs font-medium text-emerald-700">Unlimited curiosity unlocked.</p>
               ) : (
                 <div>
