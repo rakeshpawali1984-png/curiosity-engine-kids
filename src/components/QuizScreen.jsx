@@ -5,6 +5,8 @@ export default function QuizScreen({ topic, onComplete, onHome }) {
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState(null);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [gradedCount, setGradedCount] = useState(0);
+  const [correctCount, setCorrectCount] = useState(0);
 
   const question = topic.quiz[index];
   const isLastQuestion = index === topic.quiz.length - 1;
@@ -16,9 +18,23 @@ export default function QuizScreen({ topic, onComplete, onHome }) {
   };
 
   const handleNext = () => {
+    const gradedIncrement = question.type === "open" ? 0 : 1;
+    const correctIncrement = question.type !== "open" && selected === question.answer ? 1 : 0;
+    const nextGradedCount = gradedCount + gradedIncrement;
+    const nextCorrectCount = correctCount + correctIncrement;
+
     if (isLastQuestion) {
-      onComplete();
+      const accuracy = nextGradedCount > 0 ? nextCorrectCount / nextGradedCount : 0;
+      onComplete({
+        totalQuestions: topic.quiz.length,
+        gradedCount: nextGradedCount,
+        correctCount: nextCorrectCount,
+        accuracy,
+        masteryAchieved: nextGradedCount > 0 && accuracy >= 0.8,
+      });
     } else {
+      setGradedCount(nextGradedCount);
+      setCorrectCount(nextCorrectCount);
       setIndex((i) => i + 1);
       setSelected(null);
       setShowFeedback(false);

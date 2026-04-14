@@ -837,6 +837,7 @@ function MainApp({
   const [currentTopic, setCurrentTopic] = useState(null);
   const [pack, setPack] = useState("original"); // "original" | "spark"
   const [currentSearchId, setCurrentSearchId] = useState(null);
+  const [quizResult, setQuizResult] = useState(null);
 
   const activePack = pack === "original" ? topics : topicsSpark;
   const visibleTopics = useMemo(() => {
@@ -847,6 +848,7 @@ function MainApp({
 
   const selectTopic = async (topic) => {
     setCurrentTopic(topic);
+    setQuizResult(null);
     setScreen("story");
     const searchId = onRecordSearch ? await onRecordSearch(topic.title) : null;
     setCurrentSearchId(searchId);
@@ -856,12 +858,21 @@ function MainApp({
     setScreen("home");
     setCurrentTopic(null);
     setCurrentSearchId(null);
+    setQuizResult(null);
   };
 
-  const handleQuizComplete = async () => {
+  const buildMasteryBadgeTitle = (topic) => `${topic?.title || "Adventure"} Mastery ⭐`;
+
+  const handleQuizComplete = async (result) => {
+    setQuizResult(result || null);
     setScreen("badge");
     if (onAwardBadge) {
+      // Completion badge is always awarded.
       await onAwardBadge(currentTopic?.badge, currentSearchId);
+      // Mastery badge is only awarded on strong accuracy.
+      if (result?.masteryAchieved) {
+        await onAwardBadge(buildMasteryBadgeTitle(currentTopic), currentSearchId);
+      }
     }
   };
 
@@ -937,6 +948,7 @@ function MainApp({
           {screen === "badge" && (
             <BadgeScreen
               topic={currentTopic}
+              quizResult={quizResult}
               onHome={demoMode ? (onAskGrownUp || goHome) : goHome}
               ctaLabel={demoMode ? "Liked it? Ask a grown-up" : "Try another adventure ✨"}
             />

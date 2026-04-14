@@ -50,7 +50,7 @@ const BLOCKED_PATTERNS = [
   /jailbreak/,
 ];
 
-const MAX_INPUT_LENGTH = 200;
+const MAX_INPUT_LENGTH = 120;
 
 function isInputSafe(raw) {
   if (!raw || raw.trim().length === 0) return false;
@@ -259,12 +259,12 @@ function buildPartialTopic(fast, userQuery) {
   return {
     id: "curious-" + Date.now(),
     title:       fast.title       || userQuery,
-    emoji:       fast.emoji       || "🔭",
+    emoji:       fast.emoji       || "🦘",
     story:       fast.story,
     explanation: fast.explanation,
     keyLesson:   fast.keyLesson   || fast.explanation.split(".")[0] + ".",
     wow:         fast.wow         || null,
-    badge:       fast.badge       || "Curious Explorer 🔭",
+    badge:       fast.badge       || "Whyroo Explorer 🦘",
     // placeholders — will be replaced when deep call resolves
     activity:    null,
     quiz:        [],
@@ -338,7 +338,7 @@ async function runPipeline(query, onPhaseChange, questionId) {
 
 // ─── Loading screen data ────────────────────────────────────────────────────
 
-const FUN_FACTS = [
+const FUN_FACTS_BASE = [
   "One tree makes 8,000 sheets of paper! 🌳",
   "Honey never goes bad — ever! 🍯",
   "Octopuses have 3 hearts! 🐙",
@@ -391,6 +391,184 @@ const FUN_FACTS = [
   "There are more trees on Earth than stars in the Milky Way! 🌲",
 ];
 
+const FUN_FACTS_EXTRA = [
+  "A bolt of lightning is hotter than the surface of the Sun! ⚡",
+  "A day on Mercury lasts about 176 Earth days! ☄️",
+  "Saturn is so light it could float in water! 🪐",
+  "Koalas sleep up to 20 hours a day! 🐨",
+  "An ostrich's eye is bigger than its brain! 🐦",
+  "The tallest mountain on Earth keeps growing a little each year! 🏔️",
+  "A cloud can stretch for hundreds of kilometers! ☁️",
+  "Some bees can recognize human faces! 🐝",
+  "A blue whale is the largest animal ever known! 🐋",
+  "Jellyfish have been around longer than dinosaurs! 🪼",
+  "A chameleon's tongue can be longer than its body! 🦎",
+  "The fastest land animal is the cheetah! 🐆",
+  "The fastest bird is the peregrine falcon! 🦅",
+  "The largest desert on Earth is Antarctica! 🧊",
+  "Some lizards can walk on water for short distances! 🦎",
+  "A hummingbird's heart can beat over 1,000 times a minute! 💓",
+  "Spiders can make silk stronger than steel for its size! 🕸️",
+  "A starfish can regrow lost arms! ⭐",
+  "Owls can turn their heads much farther than humans can! 🦉",
+  "Many sharks never stop swimming! 🦈",
+  "A giraffe has the same number of neck bones as a human: 7! 🦒",
+  "The largest living lizard is the Komodo dragon! 🐉",
+  "Camels have three eyelids to protect against sand! 🐪",
+  "A snail has thousands of tiny teeth! 🐌",
+  "Some parrots can learn hundreds of words! 🦜",
+  "Beavers can hold their breath for around 15 minutes! 🦫",
+  "A baby kangaroo is called a joey! 🦘",
+  "Some penguins can dive deeper than 500 meters! 🐧",
+  "A panda spends most of its day eating bamboo! 🎋",
+  "The largest type of turtle is the leatherback sea turtle! 🐢",
+  "Dolphins sleep with one half of their brain at a time! 🐬",
+  "Crocodiles can replace each tooth many times! 🐊",
+  "A rabbit's teeth never stop growing! 🐇",
+  "Some ants farm fungi like tiny gardeners! 🍄",
+  "The human body has around 206 bones as an adult! 🦴",
+  "Your skin is your largest organ! ✨",
+  "You blink thousands of times a day without noticing! 👀",
+  "Your heart beats about 100,000 times each day! ❤️",
+  "Your body is mostly water! 💧",
+  "Bones are lighter than they look because they have tiny spaces inside! 🦴",
+  "Your fingerprints are unique to you! ☝️",
+  "Your ears help you balance as well as hear! 👂",
+  "The tongue is made of many muscles! 👅",
+  "Your brain uses about 20% of your body's energy! 🧠",
+  "People have different numbers of taste buds! 🍓",
+  "The smallest bones in your body are in your ear! 🔊",
+  "Your body makes new red blood cells all the time! 🩸",
+  "Babies have more bones than adults! 👶",
+  "Plants make oxygen during photosynthesis! 🌿",
+  "Sunflowers can track the Sun while growing! 🌻",
+  "Some seeds can sleep in soil for years before sprouting! 🌱",
+  "Bamboo is one of the fastest-growing plants on Earth! 🎍",
+  "Mushrooms are not plants - they are fungi! 🍄",
+  "Venus flytraps can sense tiny touches before snapping shut! 🌱",
+  "Some trees can live for thousands of years! 🌳",
+  "Cactus spines are modified leaves! 🌵",
+  "Leaves can have tiny pores called stomata! 🍃",
+  "Many flowers use color and scent to attract pollinators! 🌸",
+  "Coral reefs are built by tiny animals called polyps! 🪸",
+  "The ocean covers about 70% of Earth's surface! 🌊",
+  "Only a small part of Earth's water is fresh water! 💦",
+  "Tides are mostly caused by the Moon's gravity! 🌕",
+  "Waves can travel across entire oceans! 🌊",
+  "Some fish can glow in the dark! ✨",
+  "The deepest ocean trench is deeper than Mount Everest is tall! 🌍",
+  "Sea stars move using tiny tube feet! ⭐",
+  "Some whales migrate thousands of kilometers each year! 🧭",
+  "A day on Mars is just a little longer than a day on Earth! 🔴",
+  "Jupiter has the shortest day of all the planets! 🪐",
+  "Neptune has very strong winds! 🌬️",
+  "The Moon has moonquakes! 🌙",
+  "The Sun is a star at the center of our solar system! ☀️",
+  "There are more stars than grains of sand on many beaches! ✨",
+  "Astronauts grow a little taller in space! 🚀",
+  "Space is mostly empty, which is why planets are so far apart! 🌌",
+  "Some moons may have oceans under their ice! 🧊",
+  "Comets are often called dirty snowballs! ☄️",
+  "Earth rotates once about every 24 hours! 🌍",
+  "Earth orbits the Sun once every year! 🗓️",
+  "Rainbows appear when light bends and reflects in raindrops! 🌈",
+  "Snowflakes have six sides! ❄️",
+  "No two snowflakes are exactly the same! ❄️",
+  "Thunder is the sound made by lightning heating the air! ⛈️",
+  "Fog is basically a cloud close to the ground! 🌫️",
+  "Wind is moving air caused by uneven heating! 🍃",
+  "Hail forms when storm clouds toss ice up and down! 🧊",
+  "Some deserts are cold, not hot! 🏜️",
+  "Volcanic ash can help make soil very fertile! 🌋",
+  "Rocks can slowly change into new types over time! 🪨",
+  "Earth has moving tectonic plates under the surface! 🌍",
+  "A canyon can be carved by water over millions of years! 🏞️",
+  "Many fossils are formed when plants or animals are buried in sediment! 🦴",
+  "Penguins live in the Southern Hemisphere, not the Arctic! 🐧",
+  "Polar bears live in the Arctic, not Antarctica! 🐻‍❄️",
+  "Some frogs can jump many times their body length! 🐸",
+  "A housefly beats its wings hundreds of times per second! 🪰",
+  "A bat is a mammal, not a bird! 🦇",
+  "Some snakes can smell with their tongues! 🐍",
+  "Elephants use low rumbles to communicate over long distances! 🐘",
+  "Kangaroos can't hop backwards easily! 🦘",
+  "Platypuses lay eggs even though they are mammals! 🦆",
+  "A narwhal's tusk is actually a long tooth! 🦄",
+  "Some crabs can walk sideways faster than forward! 🦀",
+  "A seahorse dad carries the babies! 🐴",
+  "Earthworms help soil by mixing and aerating it! 🪱",
+  "Some birds can sleep while flying! 🕊️",
+  "Crows can use tools to solve problems! 🐦",
+  "Orcas are actually the largest members of the dolphin family! 🐬",
+  "A gecko can stick to walls using tiny hairs on its feet! 🦎",
+  "Many turtles can feel touch through their shells! 🐢",
+  "A lion's roar can be heard from far away! 🦁",
+  "Hippos can run surprisingly fast on land! 🦛",
+  "A cat's whiskers help it judge spaces! 🐱",
+  "Dogs can smell much better than humans! 🐶",
+  "The first clocks used shadows from the Sun! 🕰️",
+  "Paper was invented in ancient China! 📜",
+  "The Great Wall of China is over 20,000 km long! 🧱",
+  "The first airplanes flew a little over 100 years ago! ✈️",
+  "The first photographs took much longer to capture than today! 📷",
+  "The wheel is one of the oldest inventions still used today! 🛞",
+  "Compasses helped sailors navigate for centuries! 🧭",
+  "Ancient people mapped stars to find directions! ⭐",
+  "Some bridges can bend a little in strong wind! 🌉",
+  "A violin has over 70 separate pieces of wood! 🎻",
+  "Piano keys can play very high and very low notes! 🎹",
+  "Sound is made by vibrations! 🔊",
+  "Light travels much faster than sound! 💡",
+  "Glass is made from sand heated to very high temperatures! 🏖️",
+  "Rubber can bounce because it stretches and snaps back! 🏀",
+  "Magnets have north and south poles! 🧲",
+  "Electricity can travel through some materials better than others! ⚙️",
+  "Water can exist as ice, liquid, and vapor! 💧",
+  "Boiling and freezing points of water change with pressure! 🌡️",
+  "The number zero was a major math invention! 0️⃣",
+  "A triangle's interior angles always add up to 180 degrees! 🔺",
+  "Pi starts with 3.14 and goes on forever! 🥧",
+  "Patterns help scientists and mathematicians make predictions! 🔍",
+  "The alphabet has 26 letters in English! 🔤",
+  "Some languages are read from right to left! 📖",
+  "Every language has its own rhythm and sound patterns! 🎵",
+  "A palindrome reads the same forward and backward! 🔁",
+  "Braille lets people read using touch! 🤲",
+  "Sign languages have their own grammar and rules! 🤟",
+  "A leap year has 366 days! 📅",
+  "There are 60 seconds in a minute and 60 minutes in an hour! ⏱️",
+  "Maps use symbols to show real-world places! 🗺️",
+  "Some countries have more than one official language! 🌍",
+  "The equator divides Earth into northern and southern halves! 🌐",
+  "Earth has seven continents! 🧭",
+  "The Pacific Ocean is the largest ocean! 🌊",
+  "Australia is both a country and a continent! 🇦🇺",
+  "Some cities are built on islands connected by bridges! 🌉",
+  "Recycling helps save energy and resources! ♻️",
+  "Compost turns food scraps into helpful soil! 🌱",
+  "Turning off unused lights saves electricity! 💡",
+  "Walking or biking can reduce air pollution! 🚲",
+  "Planting native trees can help local wildlife! 🌳",
+  "A single bee colony can visit millions of flowers! 🌼",
+  "Ladybugs are helpful insects in many gardens! 🐞",
+  "Some butterflies migrate long distances! 🦋",
+  "A rainbow can appear in mist from waterfalls too! 🌈",
+  "Moonlight is sunlight reflected by the Moon! 🌙",
+  "Some caves have crystal formations that took thousands of years to grow! 🕳️",
+  "Ice can be so clear that it looks almost invisible! 🧊",
+  "A compass needle points toward magnetic north, not true north! 🧲",
+  "Even tiny plankton in the ocean help produce oxygen! 🫧",
+  "Some seeds can travel by wind, water, or animal fur! 🌬️",
+  "Volcanoes can create brand new land! 🌋",
+  "River deltas form where rivers slow down and drop sediment! 🏞️",
+  "The human brain keeps learning and changing throughout life! 🧠",
+  "Practice helps strengthen connections in your brain! 💪",
+  "Curiosity helps people become better problem-solvers! 💡",
+  "Asking great questions is one of the best ways to learn! ❓",
+];
+
+const FUN_FACTS = [...FUN_FACTS_BASE, ...FUN_FACTS_EXTRA].slice(0, 200);
+
 function LoadingCard() {
   const [fact] = useState(() => FUN_FACTS[Math.floor(Math.random() * FUN_FACTS.length)]);
 
@@ -429,6 +607,7 @@ export default function CuriousScreen({
   const [errorMsg, setErrorMsg] = useState("");
   const [quotaReached, setQuotaReached] = useState(false);
   const [quotaResetAt, setQuotaResetAt] = useState("");
+  const [quizResult, setQuizResult] = useState(null);
   // deepReady: true once activity/quiz/curiosity have arrived from the background call
   const [deepReady, setDeepReady] = useState(false);
   const [billingStatus, setBillingStatus] = useState(null);
@@ -459,6 +638,7 @@ export default function CuriousScreen({
     setErrorMsg("");
     setQuotaReached(false);
     setQuotaResetAt("");
+    setQuizResult(null);
     setDeepReady(false);
     deepPromiseRef.current = null;
     bouncerPromiseRef.current = null;
@@ -482,6 +662,7 @@ export default function CuriousScreen({
     setErrorMsg("");
     setQuotaReached(false);
     setQuotaResetAt("");
+    setQuizResult(null);
     setDeepReady(false);
     deepPromiseRef.current = null;
     bouncerPromiseRef.current = null;
@@ -551,6 +732,8 @@ export default function CuriousScreen({
 
   const handleSubmit = () => triggerSearch(input.trim());
 
+  const buildMasteryBadgeTitle = (topicData) => `${topicData?.title || "Adventure"} Mastery ⭐`;
+
   const handleCuriosityClick = (question) => {
     setInput(question);
     triggerSearch(question);
@@ -616,10 +799,16 @@ export default function CuriousScreen({
       <QuizScreen
         key={topic.id}
         topic={topic}
-        onComplete={async () => {
+        onComplete={async (result) => {
+          setQuizResult(result || null);
           setScreen("badge");
           if (onAwardBadge) {
+            // Completion badge is always awarded.
             await onAwardBadge(topic?.badge, activeSearchIdRef.current);
+            // Mastery badge is only awarded on strong accuracy.
+            if (result?.masteryAchieved) {
+              await onAwardBadge(buildMasteryBadgeTitle(topic), activeSearchIdRef.current);
+            }
           }
         }}
         onHome={goAsk}
@@ -628,7 +817,7 @@ export default function CuriousScreen({
   }
 
   if (screen === "badge")
-    return wrapper(<BadgeScreen topic={topic} onHome={() => setScreen("curiosity")} />);
+    return wrapper(<BadgeScreen topic={topic} quizResult={quizResult} onHome={() => setScreen("curiosity")} />);
 
   if (screen === "curiosity") {
     const c = topic.curiosity || [];
@@ -701,7 +890,7 @@ export default function CuriousScreen({
           onClick={() => { setInput(""); goAsk(); }}
           className="w-full bg-purple-500 hover:bg-purple-600 hover:scale-105 active:scale-95 text-white font-black py-5 rounded-2xl text-xl transition-all shadow-md"
         >
-          Ask something new 🔭
+          Ask something new 🦘
         </button>
       </div>
     );
@@ -721,9 +910,9 @@ export default function CuriousScreen({
         {/* Header */}
         <div className="text-center mb-6 mt-4">
           <h1 className="text-4xl font-black text-purple-700 mb-2">
-            <span className="inline-block animate-bounce">🔭</span> The Wonder Engine
+            <span className="inline-block animate-bounce">🦘</span> Whyroo
           </h1>
-          <p className="text-gray-500 text-lg">Ask anything and go on an adventure!</p>
+          <p className="text-gray-500 text-lg">Ask anything and turn why into wow.</p>
         </div>
 
         {/* Input card — always visible unless loading */}
@@ -767,7 +956,7 @@ export default function CuriousScreen({
               {billingLoading ? (
                 <p className="text-xs font-medium text-emerald-700">Checking questions left...</p>
               ) : isOverrideAccess ? (
-                <p className="text-xs font-medium text-emerald-700">Unlimited curiosity unlocked.</p>
+                <p className="text-xs font-medium text-emerald-700">Whyroo Unlimited is active.</p>
               ) : (
                 <div>
                   <div className="flex items-center justify-between gap-2">
@@ -843,7 +1032,7 @@ export default function CuriousScreen({
               <>
                 <p className="text-gray-700 font-bold text-lg mb-2">Great exploring today! 🌟</p>
                 <p className="text-gray-500 font-semibold text-base mb-6">
-                  {errorMsg} Ask a grown-up to unlock unlimited curiosity.
+                  {errorMsg} Ask a grown-up to unlock Whyroo Unlimited.
                 </p>
                 <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-left">
                   <p className="text-xs font-semibold text-amber-800">🔒 More questions are locked for now.</p>

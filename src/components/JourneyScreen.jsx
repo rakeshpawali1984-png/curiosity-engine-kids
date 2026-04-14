@@ -62,7 +62,7 @@ export default function JourneyScreen({ activeChild, onBackHome }) {
 
         <div className="bg-white rounded-3xl shadow-lg p-6 border border-purple-100 mb-5">
           <p className="text-xs font-bold uppercase tracking-widest text-purple-500 mb-2">
-            My Journey
+            My Whyroo Journey
           </p>
           <h1 className="text-3xl font-black text-gray-800 mb-2">
             {activeChild?.avatar_emoji || "🧠"} {activeChild?.name}&apos;s Journey
@@ -87,7 +87,7 @@ export default function JourneyScreen({ activeChild, onBackHome }) {
 
         <div className="bg-white rounded-3xl shadow-lg p-6 border border-yellow-100 mb-5">
           <p className="text-xs font-bold uppercase tracking-widest text-yellow-600 mb-3">
-            Curiosity Superpowers
+            Whyroo Superpowers
           </p>
 
           {loading ? (

@@ -568,8 +568,8 @@ export default function ChildProfilesScreen({
               </p>
               <p className="text-sm text-gray-500">
                 {isPaidPlan
-                  ? "Unlimited curiosity is active"
-                  : "Free plan: 5 curious questions per day"}
+                  ? "Whyroo Unlimited is active"
+                  : "Free plan: 5 questions per day"}
               </p>
             </div>
             <button
@@ -587,7 +587,7 @@ export default function ChildProfilesScreen({
             </p>
             {!isPaidPlan && (
               <p className="text-sm text-emerald-700">
-                Usage today: {usedToday}/{dailyLimit} curious questions
+                Usage today: {usedToday}/{dailyLimit} questions
               </p>
             )}
             {isPaidPlan && billingStatus?.currentPeriodEnd && (
@@ -616,7 +616,7 @@ export default function ChildProfilesScreen({
                 disabled={billingActionLoading}
                 className="w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 text-white font-bold py-3 transition-all active:scale-95"
               >
-                {billingActionLoading ? "Starting checkout..." : "Unlock unlimited curiosity — $6.99/month"}
+                {billingActionLoading ? "Starting checkout..." : "Unlock Whyroo Unlimited — $6.99/month"}
               </button>
             )}
           </div>
