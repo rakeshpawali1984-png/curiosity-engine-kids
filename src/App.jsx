@@ -583,6 +583,7 @@ export default function App() {
         activeChild={activeChild}
         onOpenJourney={() => setShowJourney(true)}
         onOpenParentPortal={openParentPortal}
+        onOpenSite={() => navigateTo("/")}
         onRecordSearch={(query) => handleTrackSearch(query, "curious")}
         onAwardBadge={(badgeTitle, sourceSearchId) =>
           handleTrackBadge(badgeTitle, sourceSearchId)

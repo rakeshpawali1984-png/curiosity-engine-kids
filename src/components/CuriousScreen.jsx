@@ -600,6 +600,7 @@ export default function CuriousScreen({
   activeChild,
   onOpenJourney,
   onOpenParentPortal,
+  onOpenSite,
   onRecordSearch,
   onAwardBadge,
 }) {
@@ -912,9 +913,15 @@ export default function CuriousScreen({
 
         {/* Header */}
         <div className="text-center mb-6 mt-4">
-          <h1 className="text-4xl font-black text-purple-700 mb-2">
-            <span className="inline-block animate-bounce-3s">🦘</span> Whyroo
-          </h1>
+          <button
+            type="button"
+            onClick={() => onOpenSite?.()}
+            className="inline-flex items-center gap-2 text-4xl font-black text-purple-700 mb-2 cursor-pointer"
+            aria-label="Go to Whyroo website"
+          >
+            <span className="inline-block animate-bounce-3s">🦘</span>
+            <span>Whyroo</span>
+          </button>
           <p className="text-gray-500 text-lg">Ask anything and turn why into wow.</p>
         </div>
 
