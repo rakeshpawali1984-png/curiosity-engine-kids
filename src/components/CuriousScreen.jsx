@@ -597,6 +597,34 @@ function LoadingCard() {
   );
 }
 
+function formatResetAtLocal(resetAtIso) {
+  if (!resetAtIso) return "More questions unlock soon.";
+  const date = new Date(resetAtIso);
+  if (Number.isNaN(date.getTime())) return "More questions unlock soon.";
+  const now = new Date();
+
+  const time = new Intl.DateTimeFormat(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfTarget = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dayDiff = Math.round((startOfTarget.getTime() - startOfToday.getTime()) / 86400000);
+
+  let dayContext = "";
+  if (dayDiff === 0) {
+    dayContext = " today";
+  } else if (dayDiff === 1) {
+    dayContext = " tomorrow";
+  } else {
+    const weekday = new Intl.DateTimeFormat(undefined, { weekday: "long" }).format(date);
+    dayContext = ` on ${weekday}`;
+  }
+
+  return `More questions unlock at ${time}${dayContext}.`;
+}
+
 export default function CuriousScreen({
   activeChild,
   onOpenJourney,
@@ -769,6 +797,7 @@ export default function CuriousScreen({
   const questionsLeftToday = isPaidPlan ? null : Math.max(0, dailyLimit - usedToday);
   const isOutOfQuestions = !isPaidPlan && questionsLeftToday !== null && questionsLeftToday <= 0;
   const meterResetAt = billingStatus?.resetAt || quotaResetAt || "";
+  const meterResetLabel = formatResetAtLocal(meterResetAt);
 
   // ── Story → Explanation → Activity → Quiz → Badge ─────────────────────────
   // These reuse the exact same screen components as the main app, wrapped in
@@ -1016,7 +1045,7 @@ export default function CuriousScreen({
                     </button>
                   </div>
                   {isOutOfQuestions && (
-                    <p className="text-[11px] text-emerald-700 mt-1">Resets at midnight.</p>
+                    <p className="text-[11px] text-emerald-700 mt-1">{meterResetLabel}</p>
                   )}
                 </div>
               )}
@@ -1081,7 +1110,7 @@ export default function CuriousScreen({
                 </p>
                 <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-left">
                   <p className="text-xs font-semibold text-amber-800">🔒 More questions are locked for now.</p>
-                  <p className="text-xs text-amber-700 mt-1">Your question meter resets at midnight.</p>
+                  <p className="text-xs text-amber-700 mt-1">{meterResetLabel}</p>
                 </div>
                 <button
                   onClick={onOpenParentPortal}
