@@ -8,7 +8,9 @@
     "dev:web": "vite",
     "dev:api": "vercel dev --listen 3000",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "smoke": "node scripts/smoke-checks.mjs",
+    "verify:local": "npm run build && npm run smoke"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.103.0",
