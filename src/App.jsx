@@ -154,6 +154,24 @@ export default function App() {
         setParentSecurityReady(true);
         return;
       }
+      // Send welcome email on first sign-up (created_at within last 60 s)
+      if (_event === "SIGNED_IN") {
+        const createdAt = nextSession.user.created_at;
+        const isNewUser = createdAt && Date.now() - new Date(createdAt).getTime() < 60_000;
+        if (isNewUser) {
+          const user = nextSession.user;
+          const name =
+            user.user_metadata?.full_name ||
+            user.user_metadata?.name ||
+            user.email?.split("@")[0] ||
+            "";
+          fetch("/api/send-welcome-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: user.email, name }),
+          }).catch(() => {/* fire-and-forget — never block sign-in */});
+        }
+      }
       syncFamilyData(nextSession);
     });
 
