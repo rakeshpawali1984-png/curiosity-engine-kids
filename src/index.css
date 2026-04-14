@@ -69,3 +69,25 @@ button {
 .wow-line {
   animation: wowPulse 2s ease-in-out infinite;
 }
+
+/* One-time entrance double hop */
+@keyframes hopOnce {
+  0%   { transform: translateY(0); }
+  25%  { transform: translateY(-14px); }
+  35%  { transform: translateY(0); }
+  60%  { transform: translateY(-12px); }
+  75%  { transform: translateY(0); }
+  100% { transform: translateY(0); }
+}
+.animate-hop-once {
+  animation: hopOnce 0.9s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+}
+
+/* Bounce for 3 seconds, then stay still */
+@keyframes bounceThenStop {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+.animate-bounce-3s {
+  animation: bounceThenStop 0.6s ease-in-out 5 forwards;
+}

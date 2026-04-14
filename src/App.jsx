@@ -28,6 +28,10 @@ const PARENT_PIN_MAX_ATTEMPTS = 5;
 const PARENT_PIN_LOCK_MS = 60 * 1000;
 const BILLING_RETURN_USER_KEY = "ce_billing_return_user";
 
+function normalizePathname(pathname) {
+  return pathname === "/" ? "/" : pathname.replace(/\/+$/, "");
+}
+
 export default function App() {
   const [session, setSession] = useState(null);
   const [authReady, setAuthReady] = useState(false);
@@ -42,9 +46,10 @@ export default function App() {
   const [parentPinFailedAttempts, setParentPinFailedAttempts] = useState(0);
   const [parentPinLockedUntil, setParentPinLockedUntil] = useState(0);
 
-  const rawPath = window.location.pathname;
-  const path = rawPath === "/" ? "/" : rawPath.replace(/\/+$/, "");
-  const billingStatus = new URLSearchParams(window.location.search).get("billing");
+  const [path, setPath] = useState(() => normalizePathname(window.location.pathname));
+  const [search, setSearch] = useState(() => window.location.search);
+
+  const billingStatus = new URLSearchParams(search).get("billing");
   const isLandingRoute = path === "/";
   const isAppRoute = path === "/app";
   const isParentRoute = path === "/parent";
@@ -53,13 +58,36 @@ export default function App() {
   const isPrivacyRoute = path === "/privacy";
   const isTermsRoute = path === "/terms";
 
+  const syncRouteState = () => {
+    setPath(normalizePathname(window.location.pathname));
+    setSearch(window.location.search);
+  };
+
+  const navigateTo = (nextPath, { replace = false } = {}) => {
+    if (replace) {
+      window.history.replaceState({}, "", nextPath);
+    } else {
+      window.history.pushState({}, "", nextPath);
+    }
+    syncRouteState();
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      syncRouteState();
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
   if (isDemoRoute) {
     return (
       <MainApp
         activeChild={{ name: "Demo Explorer", avatar_emoji: "🧠" }}
         demoMode
         onAskGrownUp={() => {
-          window.location.href = "/";
+          navigateTo("/");
         }}
       />
     );
@@ -310,7 +338,7 @@ export default function App() {
 
   useEffect(() => {
     if (session && familyReady && !activeChild && !isParentRoute && (isAppRoute || isCuriousRoute)) {
-      window.location.replace("/parent");
+      navigateTo("/parent", { replace: true });
     }
   }, [session, familyReady, activeChild, isParentRoute, isAppRoute, isCuriousRoute]);
 
@@ -363,7 +391,7 @@ export default function App() {
   };
 
   const openParentPortal = () => {
-    window.location.href = "/parent";
+    navigateTo("/parent");
   };
 
   const verifyParentPin = async (pinInput) => {
@@ -508,7 +536,7 @@ export default function App() {
           onSubmit={verifyParentPin}
           onSignOut={handleSignOut}
           onBackHome={() => {
-            window.location.href = "/app";
+            navigateTo("/app");
           }}
           initialLockedUntil={parentPinLockedUntil}
         />
@@ -525,7 +553,7 @@ export default function App() {
         onChangeParentPin={changeParentPin}
         onSignOut={handleSignOut}
         onDone={() => {
-          window.location.href = "/app";
+          navigateTo("/app");
         }}
       />
     );
@@ -893,7 +921,7 @@ function MainApp({
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-400">Demo Mode</p>
             <button
               onClick={() => {
-                window.location.href = "/app";
+                onAskGrownUp?.();
               }}
               className="rounded-full px-3 py-1.5 text-xs font-bold bg-purple-50 text-purple-600 hover:bg-purple-100 hover:text-purple-700"
             >

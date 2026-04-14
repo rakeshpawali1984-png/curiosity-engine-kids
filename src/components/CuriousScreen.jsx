@@ -289,10 +289,13 @@ function mergeDeep(partial, deep) {
 // Returns { partial, deepPromise }
 // - partial resolves as soon as story+explanation are ready (~1.5s)
 // - deepPromise resolves with activity+quiz+curiosity while user reads
-async function runPipeline(query, onPhaseChange, questionId) {
+async function runPipeline(query, onPhaseChange, questionId, ageRange) {
   const t0 = performance.now();
-  logger.debug(`[WonderEngine] pipeline start — query="${query}"`);
+  logger.debug(`[WonderEngine] pipeline start — query="${query}" age=${ageRange || "unknown"}`);
   onPhaseChange("creating");
+
+  const agePrefix = ageRange ? `[Child age: ${ageRange}] ` : "";
+  const ageContent = `${agePrefix}${query}`;
 
   // Fire all three calls simultaneously:
   //   Fast creator  (~150 tok) → story + explanation shown immediately
@@ -300,8 +303,8 @@ async function runPipeline(query, onPhaseChange, questionId) {
   //   Bouncer       (~36 tok)  → safety check, runs concurrently
   logger.debug("[WonderEngine] firing Fast + Deep + Bouncer in parallel");
 
-  const fastPromise = callOpenAI(PROMPT_KEY_FAST, query, 0.7, true, "fast", questionId).then(parseFast);
-  const deepPromise = callOpenAI(PROMPT_KEY_DEEP, query, 0.7, true, "deep", questionId).then(parseDeep);
+  const fastPromise = callOpenAI(PROMPT_KEY_FAST, ageContent, 0.7, true, "fast", questionId).then(parseFast);
+  const deepPromise = callOpenAI(PROMPT_KEY_DEEP, ageContent, 0.7, true, "deep", questionId).then(parseDeep);
   const bouncerPromise = callOpenAI(PROMPT_KEY_BOUNCER, `User query for a kids learning app: "${query}"`, 0.1, false, "bouncer", questionId).then(parseBouncer);
   let bouncerStatus = "pending";
   bouncerPromise
@@ -678,7 +681,7 @@ export default function CuriousScreen({
       if (onRecordSearch) {
         activeSearchIdRef.current = await onRecordSearch(query);
       }
-      const { partial, deepPromise, bouncerPromise } = await runPipeline(query, () => {}, questionId);
+      const { partial, deepPromise, bouncerPromise } = await runPipeline(query, () => {}, questionId, activeChild?.age_range);
       const partialTopic = buildPartialTopic(partial, query);
       setTopic(partialTopic);
       setScreen("story");
@@ -910,7 +913,7 @@ export default function CuriousScreen({
         {/* Header */}
         <div className="text-center mb-6 mt-4">
           <h1 className="text-4xl font-black text-purple-700 mb-2">
-            <span className="inline-block animate-bounce">🦘</span> Whyroo
+            <span className="inline-block animate-bounce-3s">🦘</span> Whyroo
           </h1>
           <p className="text-gray-500 text-lg">Ask anything and turn why into wow.</p>
         </div>
