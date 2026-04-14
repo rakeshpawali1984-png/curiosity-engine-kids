@@ -30,6 +30,15 @@ export default function LoginScreen() {
           >
             Continue with Google
           </button>
+
+          <button
+            onClick={() => {
+              window.location.href = "/demo";
+            }}
+            className="w-full mt-3 bg-purple-50 hover:bg-purple-100 border-2 border-purple-200 hover:border-purple-300 rounded-2xl px-5 py-4 font-bold text-purple-700 transition-all active:scale-95"
+          >
+            Try demo without login
+          </button>
         </div>
       </div>
     </div>

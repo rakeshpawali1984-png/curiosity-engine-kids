@@ -164,7 +164,7 @@ export default function QuizScreen({ topic, onComplete, onHome }) {
           className="w-full bg-purple-500 hover:bg-purple-600 hover:scale-105 active:scale-95 text-white font-black py-6 rounded-2xl text-xl transition-all shadow-md"
         >
           {isLastQuestion
-            ? "🏆 Get My Badge!"
+            ? "✨ Reveal My Superpower!"
             : isCorrect
             ? "Nice! Next →"
             : "Keep going →"}

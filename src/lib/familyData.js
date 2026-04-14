@@ -177,3 +177,72 @@ export async function deleteChildProfile(childId) {
 
   if (error) throw error;
 }
+
+async function getAuthHeaders() {
+  requireSupabase();
+  const { data } = await supabase.auth.getSession();
+  const token = data?.session?.access_token;
+  if (!token) {
+    throw new Error("Session expired. Please sign in again.");
+  }
+
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
+}
+
+export async function getBillingStatus() {
+  const headers = await getAuthHeaders();
+  const response = await fetch("/api/billing/status", {
+    method: "GET",
+    headers,
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.error || "Could not load billing status");
+  }
+
+  return payload;
+}
+
+export async function createCheckoutSession() {
+  const headers = await getAuthHeaders();
+  const response = await fetch("/api/billing/create-checkout-session", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({}),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.error || "Could not start checkout");
+  }
+
+  if (!payload?.checkoutUrl) {
+    throw new Error("Checkout URL missing");
+  }
+
+  return payload;
+}
+
+export async function createCustomerPortalSession() {
+  const headers = await getAuthHeaders();
+  const response = await fetch("/api/billing/customer-portal", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({}),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.error || "Could not open billing portal");
+  }
+
+  if (!payload?.portalUrl) {
+    throw new Error("Billing portal URL missing");
+  }
+
+  return payload;
+}

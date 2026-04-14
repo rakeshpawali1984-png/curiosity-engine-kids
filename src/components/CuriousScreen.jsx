@@ -1,10 +1,11 @@
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import StoryScreen from "./StoryScreen";
 import ExplanationScreen from "./ExplanationScreen";
 import ActivityScreen from "./ActivityScreen";
 import QuizScreen from "./QuizScreen";
 import BadgeScreen from "./BadgeScreen";
 import FamilyTopBar from "./FamilyTopBar";
+import { getBillingStatus } from "../lib/familyData";
 import { hasSupabaseConfig, supabase } from "../lib/supabaseClient";
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -243,7 +244,7 @@ async function getProxyHeaders() {
   return headers;
 }
 
-async function callOpenAI(systemPrompt, userContent, temperature = 0.7, model = "gpt-4.1-mini", jsonMode = false, promptType = "generic") {
+async function callOpenAI(systemPrompt, userContent, temperature = 0.7, model = "gpt-4.1-mini", jsonMode = false, promptType = "generic", questionId = null) {
   const label = `[WonderEngine] ${model}`;
   const t0 = performance.now();
   console.log(`${label} → request start (temp=${temperature}, promptChars=${systemPrompt.length}, userChars=${userContent.length})`);
@@ -263,7 +264,11 @@ async function callOpenAI(systemPrompt, userContent, temperature = 0.7, model = 
       { role: "user", content: userContent },
     ],
     temperature,
-    cacheMeta: { promptType },
+    cacheMeta: {
+      promptType,
+      questionId,
+      experience: "curious",
+    },
   };
 
   const res = await fetch(url, {
@@ -279,7 +284,11 @@ async function callOpenAI(systemPrompt, userContent, temperature = 0.7, model = 
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `API error ${res.status}`);
+    const e = new Error(err?.error || `API error ${res.status}`);
+    e.code = err?.code;
+    e.status = res.status;
+    e.payload = err;
+    throw e;
   }
   const data = await res.json();
   const tDone = performance.now();
@@ -448,7 +457,7 @@ function mergeDeep(partial, deep) {
 // Returns { partial, deepPromise }
 // - partial resolves as soon as story+explanation are ready (~1.5s)
 // - deepPromise resolves with activity+quiz+curiosity while user reads
-async function runPipeline(query, onPhaseChange) {
+async function runPipeline(query, onPhaseChange, questionId) {
   const t0 = performance.now();
   console.log(`[WonderEngine] pipeline start — query="${query}"`);
   onPhaseChange("creating");
@@ -459,9 +468,9 @@ async function runPipeline(query, onPhaseChange) {
   //   Bouncer       (~36 tok)  → safety check, runs concurrently
   console.log("[WonderEngine] firing Fast + Deep + Bouncer in parallel…");
 
-  const fastPromise = callOpenAI(CREATOR_FAST, query, 0.7, "gpt-4.1-mini", true, "fast").then(parseFast);
-  const deepPromise = callOpenAI(CREATOR_DEEP, query, 0.7, "gpt-4.1-mini", true, "deep").then(parseDeep);
-  const bouncerPromise = callOpenAI(BOUNCER_SYSTEM, `User query for a kids learning app: "${query}"`, 0.1, "gpt-4.1-nano", false, "bouncer").then(parseBouncer);
+  const fastPromise = callOpenAI(CREATOR_FAST, query, 0.7, "gpt-4.1-mini", true, "fast", questionId).then(parseFast);
+  const deepPromise = callOpenAI(CREATOR_DEEP, query, 0.7, "gpt-4.1-mini", true, "deep", questionId).then(parseDeep);
+  const bouncerPromise = callOpenAI(BOUNCER_SYSTEM, `User query for a kids learning app: "${query}"`, 0.1, "gpt-4.1-nano", false, "bouncer", questionId).then(parseBouncer);
   let bouncerStatus = "pending";
   bouncerPromise
     .then((result) => {
@@ -477,6 +486,10 @@ async function runPipeline(query, onPhaseChange) {
     fastResult = await fastPromise;
   } catch (e) {
     console.error("[WonderEngine] Fast creator failed:", e);
+    // Preserve quota errors so UI can show the correct upgrade CTA state.
+    if (e?.code === "QUOTA_EXCEEDED") {
+      throw e;
+    }
     throw new Error("CREATOR_FAIL");
   }
 
@@ -582,16 +595,38 @@ export default function CuriousScreen({
   const [screen, setScreen] = useState("ask");
   const [topic, setTopic] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [quotaReached, setQuotaReached] = useState(false);
+  const [quotaResetAt, setQuotaResetAt] = useState("");
   // deepReady: true once activity/quiz/curiosity have arrived from the background call
   const [deepReady, setDeepReady] = useState(false);
+  const [billingStatus, setBillingStatus] = useState(null);
+  const [billingLoading, setBillingLoading] = useState(false);
   const deepPromiseRef = useRef(null);
   const bouncerPromiseRef = useRef(null);
   const activeSearchIdRef = useRef(null);
+
+  const refreshBillingStatus = async () => {
+    setBillingLoading(true);
+    try {
+      const status = await getBillingStatus();
+      setBillingStatus(status);
+    } catch {
+      setBillingStatus(null);
+    } finally {
+      setBillingLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshBillingStatus();
+  }, []);
 
   const goAsk = () => {
     setScreen("ask");
     setTopic(null);
     setErrorMsg("");
+    setQuotaReached(false);
+    setQuotaResetAt("");
     setDeepReady(false);
     deepPromiseRef.current = null;
     bouncerPromiseRef.current = null;
@@ -603,7 +638,18 @@ export default function CuriousScreen({
       setScreen("blocked");
       return;
     }
+
+    // If the meter already shows zero, do not call AI again.
+    if (!isPaidPlan && questionsLeftToday !== null && questionsLeftToday <= 0) {
+      setQuotaReached(true);
+      setErrorMsg("You used all your questions for today.");
+      setScreen("error");
+      return;
+    }
+
     setErrorMsg("");
+    setQuotaReached(false);
+    setQuotaResetAt("");
     setDeepReady(false);
     deepPromiseRef.current = null;
     bouncerPromiseRef.current = null;
@@ -611,10 +657,15 @@ export default function CuriousScreen({
     setScreen("loading");
     window.scrollTo(0, 0);
     try {
+      const questionId =
+        (typeof crypto !== "undefined" && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : `q-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
       if (onRecordSearch) {
         activeSearchIdRef.current = await onRecordSearch(query);
       }
-      const { partial, deepPromise, bouncerPromise } = await runPipeline(query, () => {});
+      const { partial, deepPromise, bouncerPromise } = await runPipeline(query, () => {}, questionId);
       const partialTopic = buildPartialTopic(partial, query);
       setTopic(partialTopic);
       setScreen("story");
@@ -646,12 +697,23 @@ export default function CuriousScreen({
         // Non-fatal — user can still read story/explanation
       });
     } catch (e) {
-      if (e.message === "BLOCKED") {
+      const isQuotaError =
+        e?.code === "QUOTA_EXCEEDED" ||
+        (e?.status === 429 && /daily free limit reached/i.test(String(e?.message || "")));
+
+      if (isQuotaError) {
+          setQuotaReached(true);
+          setErrorMsg("You used all your questions for today.");
+          setQuotaResetAt(e?.payload?.resetAt || "");
+          setScreen("error");
+      } else if (e.message === "BLOCKED") {
         setScreen("blocked");
       } else {
         setErrorMsg("Let's try another fun question 😊");
         setScreen("error");
       }
+    } finally {
+      refreshBillingStatus();
     }
   };
 
@@ -661,6 +723,13 @@ export default function CuriousScreen({
     setInput(question);
     triggerSearch(question);
   };
+
+  const isPaidPlan = billingStatus?.subscriptionStatus === "active";
+  const usedToday = Number(billingStatus?.usedToday || 0);
+  const dailyLimit = Number(billingStatus?.dailyLimit || 5);
+  const questionsLeftToday = isPaidPlan ? null : Math.max(0, dailyLimit - usedToday);
+  const isOutOfQuestions = !isPaidPlan && questionsLeftToday !== null && questionsLeftToday <= 0;
+  const meterResetAt = billingStatus?.resetAt || quotaResetAt || "";
 
   // ── Story → Explanation → Activity → Quiz → Badge ─────────────────────────
   // These reuse the exact same screen components as the main app, wrapped in
@@ -851,15 +920,40 @@ export default function CuriousScreen({
             </div>
             <button
               onClick={handleSubmit}
-              disabled={!input.trim()}
+              disabled={!input.trim() || isOutOfQuestions}
               className={`w-full text-white font-black py-5 rounded-2xl text-xl transition-all hover:scale-105 active:scale-95 shadow-md ${
-                input.trim()
+                input.trim() && !isOutOfQuestions
                   ? "bg-purple-500 hover:bg-purple-600"
                   : "bg-purple-300 animate-pulse cursor-not-allowed"
               }`}
             >
-              Explore →
+              {isOutOfQuestions ? "Questions used for today" : "Explore →"}
             </button>
+
+            <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+              {billingLoading ? (
+                <p className="text-xs font-medium text-emerald-700">Checking questions left...</p>
+              ) : isPaidPlan ? (
+                <p className="text-xs font-medium text-emerald-700">Unlimited curiosity unlocked.</p>
+              ) : (
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs text-emerald-800">
+                      <span className="font-bold">{questionsLeftToday}/{dailyLimit}</span> questions left today
+                    </p>
+                    <button
+                      onClick={onOpenParentPortal}
+                      className="text-xs font-semibold text-emerald-800 underline underline-offset-2 hover:text-emerald-900 shrink-0"
+                    >
+                      Ask a grown-up
+                    </button>
+                  </div>
+                  {isOutOfQuestions && (
+                    <p className="text-[11px] text-emerald-700 mt-1">Resets at midnight.</p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -912,13 +1006,40 @@ export default function CuriousScreen({
         {screen === "error" && (
           <div className="bg-white border-2 border-gray-200 rounded-3xl p-8 text-center">
             <p className="text-5xl mb-3">😊</p>
-            <p className="text-gray-600 font-bold text-lg mb-5">{errorMsg}</p>
-            <button
-              onClick={goAsk}
-              className="bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-8 rounded-2xl transition-all"
-            >
-              Try again 🔄
-            </button>
+            {quotaReached ? (
+              <>
+                <p className="text-gray-700 font-bold text-lg mb-2">Great exploring today! 🌟</p>
+                <p className="text-gray-500 font-semibold text-base mb-6">
+                  {errorMsg} Ask a grown-up to unlock unlimited curiosity.
+                </p>
+                <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-left">
+                  <p className="text-xs font-semibold text-amber-800">🔒 More questions are locked for now.</p>
+                  <p className="text-xs text-amber-700 mt-1">Your question meter resets at midnight.</p>
+                </div>
+                <button
+                  onClick={onOpenParentPortal}
+                  className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-8 rounded-2xl transition-all"
+                >
+                  Ask a grown-up
+                </button>
+                <button
+                  onClick={goAsk}
+                  className="w-full mt-3 bg-white border border-gray-200 hover:border-gray-300 text-gray-600 font-bold py-3 px-8 rounded-2xl transition-all"
+                >
+                  Back
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-gray-600 font-bold text-lg mb-5">{errorMsg}</p>
+                <button
+                  onClick={goAsk}
+                  className="bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-8 rounded-2xl transition-all"
+                >
+                  Try again 🔄
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>

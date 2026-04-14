@@ -3,6 +3,8 @@
 // the response. The key is never sent to or bundled into the client.
 
 import { getCache, setCache } from './cache.js';
+import { parseBearerToken, validateSupabaseToken } from './auth.js';
+import { enforceDailyQuestionQuota } from './subscription.js';
 
 const CACHE_ASYNC_STORE = (process.env.CACHE_ASYNC_STORE || '').trim() === 'true';
 const CACHE_READ_ENABLED = (process.env.CACHE_READ_ENABLED || '').trim() === 'true';
@@ -19,9 +21,7 @@ const OPENAI_ALLOWED_MODELS = String(process.env.OPENAI_ALLOWED_MODELS || 'gpt-4
   .map((m) => m.trim())
   .filter(Boolean);
 const OPENAI_SERVER_MODEL = String(process.env.OPENAI_SERVER_MODEL || OPENAI_ALLOWED_MODELS[0] || 'gpt-4.1-mini').trim();
-
-const tokenValidationCache = globalThis.__sparkTokenValidationCache || new Map();
-globalThis.__sparkTokenValidationCache = tokenValidationCache;
+const FREE_DAILY_QUESTION_LIMIT = Number(process.env.FREE_DAILY_QUESTION_LIMIT || '5');
 
 const rateLimitStore = globalThis.__sparkRateLimitStore || new Map();
 globalThis.__sparkRateLimitStore = rateLimitStore;
@@ -50,61 +50,6 @@ function getClientIp(req) {
   const xfwd = req.headers['x-forwarded-for'];
   if (!xfwd) return 'unknown';
   return String(xfwd).split(',')[0].trim() || 'unknown';
-}
-
-function parseBearerToken(authHeader) {
-  if (!authHeader || typeof authHeader !== 'string') return null;
-  const [scheme, token] = authHeader.trim().split(/\s+/);
-  if (!scheme || scheme.toLowerCase() !== 'bearer' || !token) return null;
-  return token;
-}
-
-function decodeJwtPayload(token) {
-  try {
-    const parts = token.split('.');
-    if (parts.length < 2) return null;
-    const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-    const padded = payload.padEnd(Math.ceil(payload.length / 4) * 4, '=');
-    return JSON.parse(Buffer.from(padded, 'base64').toString('utf8'));
-  } catch {
-    return null;
-  }
-}
-
-async function validateSupabaseToken(token) {
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseAnon = process.env.SUPABASE_PUBLISHABLE_KEY;
-  if (!supabaseUrl || !supabaseAnon) {
-    return { ok: false, status: 500, error: 'Supabase auth config is missing on server' };
-  }
-
-  const cached = tokenValidationCache.get(token);
-  if (cached && cached.expiresAt > Date.now()) {
-    return { ok: true, userId: cached.userId };
-  }
-
-  const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      apikey: supabaseAnon,
-    },
-  });
-
-  if (!response.ok) {
-    return { ok: false, status: 401, error: 'Invalid or expired access token' };
-  }
-
-  const user = await response.json().catch(() => null);
-  if (!user?.id) {
-    return { ok: false, status: 401, error: 'Token did not resolve to a valid user' };
-  }
-
-  const jwtPayload = decodeJwtPayload(token);
-  const expMs = jwtPayload?.exp ? Number(jwtPayload.exp) * 1000 : Date.now() + 60_000;
-  const cacheExpiry = Math.min(expMs, Date.now() + 60_000);
-  tokenValidationCache.set(token, { userId: user.id, expiresAt: cacheExpiry });
-  return { ok: true, userId: user.id };
 }
 
 function checkRateLimit(key, limit, windowMs) {
@@ -151,6 +96,17 @@ function normalizePromptType(value) {
   const allowed = new Set(['fast', 'deep', 'bouncer', 'generic']);
   const normalized = String(value || 'generic').toLowerCase();
   return allowed.has(normalized) ? normalized : 'generic';
+}
+
+function normalizeExperience(value) {
+  return String(value || 'generic').toLowerCase();
+}
+
+function isValidQuestionId(value) {
+  if (typeof value !== 'string') return false;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > 120) return false;
+  return /^[a-zA-Z0-9_-]+$/.test(trimmed);
 }
 
 function invalidPayload() {
@@ -227,7 +183,20 @@ function sanitizeOpenAiRequest(rawBody) {
   }
 
   const promptType = normalizePromptType(rawBody?.cacheMeta?.promptType);
-  return { ok: true, sanitized, promptType };
+  const experience = normalizeExperience(rawBody?.cacheMeta?.experience);
+  const questionId = rawBody?.cacheMeta?.questionId;
+
+  if (experience === 'curious' && !isValidQuestionId(questionId)) {
+    return invalidPayload();
+  }
+
+  return {
+    ok: true,
+    sanitized,
+    promptType,
+    experience,
+    questionId: typeof questionId === 'string' ? questionId.trim() : null,
+  };
 }
 
 export default async function handler(req, res) {
@@ -247,6 +216,7 @@ export default async function handler(req, res) {
     }
 
     req.authUserId = authResult.userId;
+    req.authUserEmail = authResult.email || null;
   }
 
   if (API_RATE_LIMIT_ENABLED) {
@@ -273,6 +243,31 @@ export default async function handler(req, res) {
   const validated = sanitizeOpenAiRequest(req.body || {});
   if (!validated.ok) {
     return res.status(validated.status || 400).json({ error: validated.error || 'Invalid request payload' });
+  }
+
+  if (API_AUTH_ENABLED && validated.experience === 'curious') {
+    try {
+      const quotaResult = await enforceDailyQuestionQuota({
+        userId: req.authUserId,
+        email: req.authUserEmail,
+        questionId: validated.questionId,
+        experience: validated.experience,
+        dailyLimit: FREE_DAILY_QUESTION_LIMIT,
+      });
+
+      if (!quotaResult.allowed) {
+        return res.status(quotaResult.status || 429).json({
+          error: quotaResult.error || 'Daily free limit reached',
+          code: quotaResult.code || 'QUOTA_EXCEEDED',
+          limit: quotaResult.limit || FREE_DAILY_QUESTION_LIMIT,
+          used: quotaResult.used || FREE_DAILY_QUESTION_LIMIT,
+          resetAt: quotaResult.resetAt,
+          upgradeRequired: true,
+        });
+      }
+    } catch (error) {
+      console.error('Quota check error:', error);
+    }
   }
 
   const openAiRequest = validated.sanitized;

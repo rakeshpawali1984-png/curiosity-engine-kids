@@ -1,13 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  createCheckoutSession,
+  createCustomerPortalSession,
   createChildProfile,
   deleteChildHistory,
   deleteChildProfile,
+  getBillingStatus,
   listChildBadges,
   listChildSearchHistory,
 } from "../lib/familyData";
+import { summarizeCuriositySuperpowers } from "../lib/curiositySuperpowers";
 
 const AVATARS = ["🦊", "🐼", "🦄", "🧠", "🚀", "🌈", "🐙", "🦕"];
+const BILLING_RETURN_USER_KEY = "ce_billing_return_user";
 
 export default function ChildProfilesScreen({
   parent,
@@ -38,6 +43,10 @@ export default function ChildProfilesScreen({
   const [updatingPin, setUpdatingPin] = useState(false);
   const [pinMessage, setPinMessage] = useState("");
   const [pinError, setPinError] = useState("");
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingActionLoading, setBillingActionLoading] = useState(false);
+  const [billingError, setBillingError] = useState("");
+  const [billingStatus, setBillingStatus] = useState(null);
   const canCreate = children.length < 3;
 
   const activeChild = useMemo(
@@ -165,6 +174,55 @@ export default function ChildProfilesScreen({
     }
   };
 
+  const refreshBillingStatus = async () => {
+    setBillingLoading(true);
+    setBillingError("");
+    try {
+      const status = await getBillingStatus();
+      setBillingStatus(status);
+    } catch (e) {
+      setBillingError(e.message || "Could not load billing status");
+    } finally {
+      setBillingLoading(false);
+    }
+  };
+
+  const handleUpgrade = async () => {
+    setBillingActionLoading(true);
+    setBillingError("");
+    try {
+      sessionStorage.setItem(BILLING_RETURN_USER_KEY, parent.id);
+      const { checkoutUrl } = await createCheckoutSession();
+      window.location.href = checkoutUrl;
+    } catch (e) {
+      setBillingError(e.message || "Could not start checkout");
+      setBillingActionLoading(false);
+    }
+  };
+
+  const handleManageBilling = async () => {
+    setBillingActionLoading(true);
+    setBillingError("");
+    try {
+      const { portalUrl } = await createCustomerPortalSession();
+      window.location.href = portalUrl;
+    } catch (e) {
+      setBillingError(e.message || "Could not open billing portal");
+      setBillingActionLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshBillingStatus();
+  }, []);
+
+  const isPaidPlan = billingStatus?.subscriptionStatus === "active";
+  const usedToday = Number(billingStatus?.usedToday || 0);
+  const dailyLimit = Number(billingStatus?.dailyLimit || 5);
+  const billingFlowStatus = new URLSearchParams(window.location.search).get("billing");
+  const superpowerSummary = summarizeCuriositySuperpowers(history);
+  const dominantPower = superpowerSummary.dominant;
+
   return (
     <div className="min-h-[100dvh] bg-gradient-to-br from-sky-100 via-purple-50 to-pink-100">
       <div className="max-w-lg mx-auto min-h-[100dvh] px-4 py-6">
@@ -186,6 +244,14 @@ export default function ChildProfilesScreen({
             Sign out
           </button>
         </div>
+
+        {billingFlowStatus === "success" && (
+          <div className="mb-4 rounded-2xl border border-green-200 bg-green-50 px-4 py-3">
+            <p className="text-sm font-semibold text-green-700">
+              Payment successful. Your subscription status will refresh in a few seconds.
+            </p>
+          </div>
+        )}
 
         <div className="bg-white rounded-3xl shadow-lg p-6 border border-purple-100 mb-5">
           <button
@@ -279,6 +345,20 @@ export default function ChildProfilesScreen({
                     History ({history.length})
                   </button>
                 </div>
+
+                {history.length > 0 && (
+                  <div className="mb-4 rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3">
+                    <p className="text-xs font-bold uppercase tracking-widest text-indigo-600 mb-2">
+                      Parent Insight
+                    </p>
+                    <p className="text-sm font-semibold text-gray-700">
+                      Strongest style right now: {dominantPower.emoji} {dominantPower.name}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Next nudge: {dominantPower.parentTip}
+                    </p>
+                  </div>
+                )}
 
                 {tab === "badges" && (
                   <div className="space-y-2 max-h-56 overflow-auto pr-1">
@@ -479,6 +559,68 @@ export default function ChildProfilesScreen({
             )}
           </div>
         )}
+
+        <div className="bg-white rounded-3xl shadow-lg p-6 border border-emerald-100 mb-5">
+          <div className="flex items-center justify-between">
+            <div className="text-left">
+              <p className="text-xs font-bold uppercase tracking-widest text-emerald-600 mb-2">
+                Subscription
+              </p>
+              <p className="text-sm text-gray-500">
+                {isPaidPlan
+                  ? "Unlimited curiosity is active"
+                  : "Free plan: 5 curious questions per day"}
+              </p>
+            </div>
+            <button
+              onClick={refreshBillingStatus}
+              disabled={billingLoading || billingActionLoading}
+              className="text-xs font-semibold text-emerald-600 hover:text-emerald-800 disabled:text-emerald-300"
+            >
+              {billingLoading ? "Refreshing..." : "Refresh"}
+            </button>
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+            <p className="text-sm text-emerald-800 font-semibold mb-2">
+              Plan: {isPaidPlan ? "Unlimited ($6.99/month)" : "Free"}
+            </p>
+            {!isPaidPlan && (
+              <p className="text-sm text-emerald-700">
+                Usage today: {usedToday}/{dailyLimit} curious questions
+              </p>
+            )}
+            {isPaidPlan && billingStatus?.currentPeriodEnd && (
+              <p className="text-sm text-emerald-700">
+                Current period ends: {new Date(billingStatus.currentPeriodEnd).toLocaleDateString()}
+              </p>
+            )}
+          </div>
+
+          {billingError && (
+            <p className="mt-3 text-sm text-red-600 font-semibold">{billingError}</p>
+          )}
+
+          <div className="mt-4">
+            {isPaidPlan ? (
+              <button
+                onClick={handleManageBilling}
+                disabled={billingActionLoading}
+                className="w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 text-white font-bold py-3 transition-all active:scale-95"
+              >
+                {billingActionLoading ? "Opening..." : "Manage Billing"}
+              </button>
+            ) : (
+              <button
+                onClick={handleUpgrade}
+                disabled={billingActionLoading}
+                className="w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 text-white font-bold py-3 transition-all active:scale-95"
+              >
+                {billingActionLoading ? "Starting checkout..." : "Unlock unlimited curiosity — $6.99/month"}
+              </button>
+            )}
+          </div>
+        </div>
 
         {activeChild && onDone && (
           <button

@@ -26,6 +26,7 @@ import {
 const topicsSpark = normalizeTopicsSpark(topicsSparkRaw);
 const PARENT_PIN_MAX_ATTEMPTS = 5;
 const PARENT_PIN_LOCK_MS = 60 * 1000;
+const BILLING_RETURN_USER_KEY = "ce_billing_return_user";
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -42,8 +43,22 @@ export default function App() {
   const [parentPinLockedUntil, setParentPinLockedUntil] = useState(0);
 
   const path = window.location.pathname;
+  const billingStatus = new URLSearchParams(window.location.search).get("billing");
   const isParentRoute = path === "/parent";
   const isCuriousRoute = path === "/get-curious";
+  const isDemoRoute = path === "/demo";
+
+  if (isDemoRoute) {
+    return (
+      <MainApp
+        activeChild={{ name: "Demo Explorer", avatar_emoji: "🧠" }}
+        demoMode
+        onAskGrownUp={() => {
+          window.location.href = "/";
+        }}
+      />
+    );
+  }
 
   const activeChild = useMemo(
     () => children.find((c) => c.id === activeChildId) || null,
@@ -144,6 +159,24 @@ export default function App() {
       window.location.replace("/parent");
     }
   }, [session, familyReady, activeChild, isParentRoute]);
+
+  useEffect(() => {
+    if (!isParentRoute || parentPortalUnlocked) return;
+    if (billingStatus !== "success") return;
+
+    const userId = session?.user?.id;
+    if (!userId) return;
+
+    const expectedUser = sessionStorage.getItem(BILLING_RETURN_USER_KEY);
+    if (expectedUser !== userId) return;
+
+    // One-time bypass only for successful Stripe return initiated from portal.
+    setParentPortalUnlocked(true);
+    setParentPinFailedAttempts(0);
+    setParentPinLockedUntil(0);
+    clearPinGuard(userId);
+    sessionStorage.removeItem(BILLING_RETURN_USER_KEY);
+  }, [billingStatus, isParentRoute, parentPortalUnlocked, session?.user?.id]);
 
   const handleSignOut = async () => {
     const userId = session?.user?.id;
@@ -320,6 +353,9 @@ export default function App() {
         <ParentPinGateScreen
           onSubmit={verifyParentPin}
           onSignOut={handleSignOut}
+          onBackHome={() => {
+            window.location.href = "/";
+          }}
           initialLockedUntil={parentPinLockedUntil}
         />
       );
@@ -386,18 +422,31 @@ export default function App() {
   );
 }
 
-function MainApp({ activeChild, onOpenJourney, onOpenParentPortal, onRecordSearch, onAwardBadge }) {
+function MainApp({
+  activeChild,
+  onOpenJourney,
+  onOpenParentPortal,
+  onRecordSearch,
+  onAwardBadge,
+  demoMode = false,
+  onAskGrownUp,
+}) {
   const [screen, setScreen] = useState("home");
   const [currentTopic, setCurrentTopic] = useState(null);
   const [pack, setPack] = useState("original"); // "original" | "spark"
   const [currentSearchId, setCurrentSearchId] = useState(null);
 
   const activePack = pack === "original" ? topics : topicsSpark;
+  const visibleTopics = useMemo(() => {
+    if (!demoMode) return activePack;
+    const shuffled = [...activePack].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, 4);
+  }, [activePack, demoMode]);
 
   const selectTopic = async (topic) => {
     setCurrentTopic(topic);
     setScreen("story");
-    const searchId = await onRecordSearch(topic.title);
+    const searchId = onRecordSearch ? await onRecordSearch(topic.title) : null;
     setCurrentSearchId(searchId);
   };
 
@@ -409,23 +458,41 @@ function MainApp({ activeChild, onOpenJourney, onOpenParentPortal, onRecordSearc
 
   const handleQuizComplete = async () => {
     setScreen("badge");
-    await onAwardBadge(currentTopic?.badge, currentSearchId);
+    if (onAwardBadge) {
+      await onAwardBadge(currentTopic?.badge, currentSearchId);
+    }
   };
 
   return (
     <div className="min-h-[100dvh] bg-gradient-to-br from-sky-100 via-purple-50 to-pink-100">
       <div className="max-w-lg mx-auto min-h-[100dvh] px-4 pt-4 pb-8">
-        <FamilyTopBar
-          activeChild={activeChild}
-          onOpenJourney={onOpenJourney}
-          onOpenParentPortal={onOpenParentPortal}
-          currentView="app"
-        />
+        {!demoMode && (
+          <FamilyTopBar
+            activeChild={activeChild}
+            onOpenJourney={onOpenJourney}
+            onOpenParentPortal={onOpenParentPortal}
+            currentView="app"
+          />
+        )}
+
+        {demoMode && (
+          <div className="bg-white/85 backdrop-blur rounded-2xl border border-purple-100 px-3 py-2 mb-4 flex items-center justify-between gap-3">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-400">Demo Mode</p>
+            <button
+              onClick={() => {
+                window.location.href = "/";
+              }}
+              className="rounded-full px-3 py-1.5 text-xs font-bold bg-purple-50 text-purple-600 hover:bg-purple-100 hover:text-purple-700"
+            >
+              Ask a grown-up
+            </button>
+          </div>
+        )}
 
         <div key={screen} className="screen-enter">
           {screen === "home" && (
             <HomeScreen
-              topics={activePack}
+              topics={visibleTopics}
               pack={pack}
               onPackChange={setPack}
               onSelect={selectTopic}
@@ -466,7 +533,11 @@ function MainApp({ activeChild, onOpenJourney, onOpenParentPortal, onRecordSearc
           )}
 
           {screen === "badge" && (
-            <BadgeScreen topic={currentTopic} onHome={goHome} />
+            <BadgeScreen
+              topic={currentTopic}
+              onHome={demoMode ? (onAskGrownUp || goHome) : goHome}
+              ctaLabel={demoMode ? "Liked it? Ask a grown-up" : "Try another adventure ✨"}
+            />
           )}
         </div>
       </div>
@@ -474,7 +545,7 @@ function MainApp({ activeChild, onOpenJourney, onOpenParentPortal, onRecordSearc
   );
 }
 
-function ParentPinGateScreen({ onSubmit, onSignOut, initialLockedUntil = 0 }) {
+function ParentPinGateScreen({ onSubmit, onSignOut, onBackHome, initialLockedUntil = 0 }) {
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [checking, setChecking] = useState(false);
@@ -556,6 +627,14 @@ function ParentPinGateScreen({ onSubmit, onSignOut, initialLockedUntil = 0 }) {
           className="w-full mt-3 rounded-2xl bg-white border border-gray-200 hover:border-gray-300 disabled:border-gray-100 disabled:text-gray-400 text-gray-600 font-semibold py-3 transition-colors"
         >
           Sign out
+        </button>
+
+        <button
+          onClick={onBackHome}
+          disabled={checking}
+          className="w-full mt-3 rounded-2xl bg-white border border-gray-200 hover:border-purple-300 disabled:border-gray-100 disabled:text-gray-400 text-purple-600 font-semibold py-3 transition-colors"
+        >
+          Back to Home
         </button>
       </div>
     </div>

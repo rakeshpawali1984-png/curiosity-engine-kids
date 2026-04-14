@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { listChildBadges, listChildSearchHistory } from "../lib/familyData";
+import { listChildSearchHistory } from "../lib/familyData";
+import { summarizeCuriositySuperpowers } from "../lib/curiositySuperpowers";
 
 function formatFriendlyDate(value) {
   const date = new Date(value);
@@ -15,7 +16,6 @@ function formatFriendlyDate(value) {
 }
 
 export default function JourneyScreen({ activeChild, onBackHome }) {
-  const [badges, setBadges] = useState([]);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -26,17 +26,12 @@ export default function JourneyScreen({ activeChild, onBackHome }) {
       if (!activeChild?.id) return;
       setLoading(true);
       try {
-        const [badgeRows, historyRows] = await Promise.all([
-          listChildBadges(activeChild.id),
-          listChildSearchHistory(activeChild.id),
-        ]);
+        const historyRows = await listChildSearchHistory(activeChild.id);
         if (!cancelled) {
-          setBadges(badgeRows);
-          setHistory(historyRows.slice(0, 5));
+          setHistory(historyRows);
         }
       } catch (e) {
         if (!cancelled) {
-          setBadges([]);
           setHistory([]);
         }
       } finally {
@@ -49,6 +44,11 @@ export default function JourneyScreen({ activeChild, onBackHome }) {
       cancelled = true;
     };
   }, [activeChild?.id]);
+
+  const recentHistory = history.slice(0, 5);
+  const superpowerSummary = summarizeCuriositySuperpowers(history);
+  const superpowers = superpowerSummary.ranked.slice(0, 2);
+  const dominantPower = superpowerSummary.dominant;
 
   return (
     <div className="min-h-[100dvh] bg-gradient-to-br from-sky-100 via-purple-50 to-pink-100">
@@ -73,11 +73,13 @@ export default function JourneyScreen({ activeChild, onBackHome }) {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-2xl bg-purple-50 border border-purple-200 px-4 py-4">
-              <p className="text-xs font-bold uppercase tracking-wide text-purple-500 mb-1">Badges</p>
-              <p className="text-3xl font-black text-purple-700">{badges.length}</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-purple-500 mb-1">Top Superpower</p>
+              <p className="text-lg font-black text-purple-700 leading-tight">
+                {dominantPower.emoji} {dominantPower.name}
+              </p>
             </div>
             <div className="rounded-2xl bg-blue-50 border border-blue-200 px-4 py-4">
-              <p className="text-xs font-bold uppercase tracking-wide text-blue-500 mb-1">Discoveries</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-blue-500 mb-1">Adventures</p>
               <p className="text-3xl font-black text-blue-700">{history.length}</p>
             </div>
           </div>
@@ -85,23 +87,25 @@ export default function JourneyScreen({ activeChild, onBackHome }) {
 
         <div className="bg-white rounded-3xl shadow-lg p-6 border border-yellow-100 mb-5">
           <p className="text-xs font-bold uppercase tracking-widest text-yellow-600 mb-3">
-            My Badges
+            Curiosity Superpowers
           </p>
 
           {loading ? (
-            <p className="text-sm text-gray-500">Loading badges...</p>
-          ) : badges.length === 0 ? (
-            <p className="text-sm text-gray-500">Finish an adventure to earn your first badge.</p>
+            <p className="text-sm text-gray-500">Loading superpowers...</p>
+          ) : history.length === 0 ? (
+            <p className="text-sm text-gray-500">Finish an adventure to discover the first superpower.</p>
           ) : (
-            <div className="grid grid-cols-2 gap-3">
-              {badges.map((badge) => (
+            <div className="grid grid-cols-1 gap-3">
+              {superpowers.map((power) => (
                 <div
-                  key={badge.id}
-                  className="rounded-2xl bg-gradient-to-br from-yellow-100 to-orange-100 border border-yellow-200 px-3 py-4 text-center"
+                  key={power.key}
+                  className="rounded-2xl bg-gradient-to-br from-yellow-100 to-orange-100 border border-yellow-200 px-4 py-4"
                 >
-                  <div className="text-3xl mb-2">🏅</div>
-                  <p className="text-sm font-bold text-gray-800 leading-snug">{badge.badge_title}</p>
-                  <p className="text-xs text-gray-500 mt-1">Earned {formatFriendlyDate(badge.awarded_at)}</p>
+                  <p className="text-base font-black text-gray-800 leading-snug">
+                    {power.emoji} {power.name}
+                  </p>
+                  <p className="text-xs text-gray-600 mt-1">{power.journeyText}</p>
+                  <p className="text-xs text-gray-500 mt-2">Seen in {power.count} adventure{power.count === 1 ? "" : "s"}</p>
                 </div>
               ))}
             </div>
@@ -115,11 +119,11 @@ export default function JourneyScreen({ activeChild, onBackHome }) {
 
           {loading ? (
             <p className="text-sm text-gray-500">Loading adventures...</p>
-          ) : history.length === 0 ? (
+          ) : recentHistory.length === 0 ? (
             <p className="text-sm text-gray-500">Explore something new to start your journey.</p>
           ) : (
             <div className="space-y-3">
-              {history.map((entry) => (
+              {recentHistory.map((entry) => (
                 <div key={entry.id} className="rounded-2xl bg-green-50 border border-green-100 px-4 py-3">
                   <p className="text-sm font-semibold text-gray-800 leading-snug">{entry.query_text}</p>
                   <p className="text-xs text-green-700 mt-1">Explored {formatFriendlyDate(entry.created_at)}</p>
