@@ -14,6 +14,15 @@ export default function LoginScreen() {
     <div className="min-h-[100dvh] bg-gradient-to-br from-sky-100 via-purple-50 to-pink-100">
       <div className="max-w-lg mx-auto min-h-[100dvh] px-4 py-10 flex items-center">
         <div className="w-full bg-white rounded-3xl shadow-lg p-7 border border-purple-100">
+          <button
+            onClick={() => {
+              window.location.href = "/";
+            }}
+            className="mb-4 text-sm font-bold text-purple-600 hover:text-purple-700 transition-colors"
+          >
+            ← Back to Home
+          </button>
+
           <p className="text-xs font-bold uppercase tracking-widest text-purple-500 mb-2">
             Parent Login
           </p>

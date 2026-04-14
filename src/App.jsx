@@ -44,9 +44,13 @@ export default function App() {
 
   const path = window.location.pathname;
   const billingStatus = new URLSearchParams(window.location.search).get("billing");
+  const isLandingRoute = path === "/";
+  const isAppRoute = path === "/app";
   const isParentRoute = path === "/parent";
   const isCuriousRoute = path === "/get-curious";
   const isDemoRoute = path === "/demo";
+  const isPrivacyRoute = path === "/privacy";
+  const isTermsRoute = path === "/terms";
 
   if (isDemoRoute) {
     return (
@@ -56,6 +60,94 @@ export default function App() {
         onAskGrownUp={() => {
           window.location.href = "/";
         }}
+      />
+    );
+  }
+
+  if (isLandingRoute) {
+    return <LandingPage />;
+  }
+
+  if (isPrivacyRoute) {
+    return (
+      <LegalScreen
+        title="Privacy Policy"
+        updated="Last updated: April 2026"
+        intro="We care about your child’s safety and privacy. This app is designed to collect as little data as possible."
+        sections={[
+          {
+            heading: "1. Information We Collect",
+            body: "We collect only what is needed to provide the service:",
+            items: [
+              "Parent account information (such as email via login)",
+              "Child profiles created by parents (name or nickname only)",
+              "Questions asked within the app (to generate responses)",
+              "Subscription and payment information (handled securely by Stripe)",
+            ],
+          },
+          {
+            heading: "2. What We Do Not Collect",
+            items: [
+              "We do not collect personal contact details directly from children",
+              "We do not intentionally collect precise location data",
+              "We do not show ads",
+              "We do not sell personal data",
+            ],
+            body: "We only share data with trusted service providers needed to operate the service, such as authentication, hosting, and payments.",
+          },
+          {
+            heading: "3. How We Use Data",
+            body: "We use data to:",
+            items: [
+              "Provide answers and learning experiences",
+              "Improve safety and response quality",
+              "Manage subscriptions and access",
+            ],
+          },
+          {
+            heading: "4. Children’s Privacy",
+            body: "Parents create and control all child profiles. Children are not required to provide personal information to use the app.",
+          },
+          {
+            heading: "5. Data Control",
+            body: "Parents can:",
+            items: [
+              "Delete child profiles at any time",
+              "Request deletion of their data, subject to legal, fraud-prevention, and billing record retention requirements",
+            ],
+          },
+          {
+            heading: "6. Third-Party Services",
+            body: "We use trusted services for authentication, hosting, and payments (via Stripe). These providers handle data securely.",
+          },
+          {
+            heading: "7. Contact",
+            body: "If you have questions, contact us at hello@curiosityengine.kids.",
+          },
+        ]}
+      />
+    );
+  }
+
+  if (isTermsRoute) {
+    return (
+      <LegalScreen
+        title="Terms of Use"
+        updated="Last updated: April 2026"
+        sections={[
+          {
+            heading: "Using the service",
+            body: "Parents are responsible for account use and supervising how children use the app.",
+          },
+          {
+            heading: "Subscriptions",
+            body: "Paid subscriptions renew automatically unless cancelled. Pricing and limits are shown inside the parent portal.",
+          },
+          {
+            heading: "Safety",
+            body: "The app is designed to provide kid-friendly educational content. Parents should review outputs for their family's needs.",
+          },
+        ]}
       />
     );
   }
@@ -155,10 +247,10 @@ export default function App() {
   }, [session?.user?.id]);
 
   useEffect(() => {
-    if (session && familyReady && !activeChild && !isParentRoute) {
+    if (session && familyReady && !activeChild && !isParentRoute && (isAppRoute || isCuriousRoute)) {
       window.location.replace("/parent");
     }
-  }, [session, familyReady, activeChild, isParentRoute]);
+  }, [session, familyReady, activeChild, isParentRoute, isAppRoute, isCuriousRoute]);
 
   useEffect(() => {
     if (!isParentRoute || parentPortalUnlocked) return;
@@ -354,7 +446,7 @@ export default function App() {
           onSubmit={verifyParentPin}
           onSignOut={handleSignOut}
           onBackHome={() => {
-            window.location.href = "/";
+            window.location.href = "/app";
           }}
           initialLockedUntil={parentPinLockedUntil}
         />
@@ -371,7 +463,7 @@ export default function App() {
         onChangeParentPin={changeParentPin}
         onSignOut={handleSignOut}
         onDone={() => {
-          window.location.href = "/";
+          window.location.href = "/app";
         }}
       />
     );
@@ -395,7 +487,7 @@ export default function App() {
     return <JourneyScreen activeChild={activeChild} onBackHome={() => setShowJourney(false)} />;
   }
 
-  if (!isCuriousRoute) {
+  if (isAppRoute) {
     return (
       <CuriousScreen
         activeChild={activeChild}
@@ -409,6 +501,10 @@ export default function App() {
     );
   }
 
+  if (!isCuriousRoute) {
+    return <LandingPage />;
+  }
+
   return (
     <MainApp
       activeChild={activeChild}
@@ -419,6 +515,168 @@ export default function App() {
         handleTrackBadge(badgeTitle, sourceSearchId)
       }
     />
+  );
+}
+
+function LandingPage() {
+  const [showSafetyModal, setShowSafetyModal] = useState(false);
+
+  const handleTryNow = () => {
+    window.location.href = "/app";
+  };
+
+  return (
+    <div className="min-h-[100dvh] bg-gradient-to-br from-sky-100 via-purple-50 to-pink-100 text-slate-800">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
+        <section className="bg-white/90 backdrop-blur rounded-3xl shadow-sm border border-purple-100 p-6 sm:p-10 text-center mb-8 sm:mb-10">
+          <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-purple-500 mb-3">Curiosity Engine</p>
+          <h1 className="text-3xl sm:text-5xl font-black leading-tight text-purple-800 mb-4">
+            A safe place for kids to explore their curiosity
+          </h1>
+          <p className="text-base sm:text-xl text-slate-600 max-w-3xl mx-auto mb-6">
+            Ask any question. Get simple stories, real-world ideas, and keep the curiosity going.
+          </p>
+          <button
+            onClick={handleTryNow}
+            className="inline-flex items-center justify-center rounded-2xl bg-purple-600 hover:bg-purple-700 text-white text-lg font-bold px-7 py-3 transition-transform active:scale-95"
+          >
+            Start exploring for free
+          </button>
+          <p className="mt-4 text-sm font-semibold text-slate-500">Built for kids. Controlled by parents.</p>
+          <p className="mt-1 text-xs sm:text-sm text-slate-400 italic">No ads. No distractions. Just curiosity.</p>
+
+          <div className="mt-7 max-w-md mx-auto text-left rounded-2xl border border-purple-100 bg-white shadow-sm p-4 sm:p-5">
+            <p className="text-[11px] font-extrabold uppercase tracking-wider text-purple-500 mb-2">App preview</p>
+            <p className="text-sm font-black text-slate-800 mb-2">Why do stars twinkle?</p>
+            <p className="text-sm text-slate-600 leading-relaxed">
+              Imagine stars like tiny lanterns in the sky. Their light travels a very long way, and when it moves through moving air around Earth,
+              the light wiggles a little. That makes stars look like they are twinkling.
+            </p>
+          </div>
+        </section>
+
+        <section className="bg-white rounded-3xl border border-purple-100 p-6 sm:p-8 mb-6">
+          <h2 className="text-2xl sm:text-3xl font-black text-purple-800 mb-5">How it works</h2>
+          <div className="grid gap-4 sm:grid-cols-3">
+            {[
+              "Ask a question",
+              "Learn through a story",
+              "Keep the curiosity going",
+            ].map((step, index) => (
+              <div key={step} className="rounded-2xl bg-purple-50 border border-purple-100 p-4">
+                <p className="text-xs font-extrabold uppercase tracking-wider text-purple-500 mb-1">Step {index + 1}</p>
+                <p className="font-bold text-slate-700">{step}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="bg-white rounded-3xl border border-purple-100 p-6 sm:p-8 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-5">
+            <h2 className="text-2xl sm:text-3xl font-black text-purple-800">Designed with safety in mind</h2>
+            <button
+              onClick={() => setShowSafetyModal(true)}
+              className="text-sm font-bold text-purple-600 hover:text-purple-700 self-start sm:self-auto"
+            >
+              How safety works
+            </button>
+          </div>
+          <ul className="grid gap-3 sm:grid-cols-2 text-slate-700 font-semibold">
+            <li className="rounded-xl bg-purple-50 border border-purple-100 px-4 py-3">Parent login and controls</li>
+            <li className="rounded-xl bg-purple-50 border border-purple-100 px-4 py-3">No ads, no distractions</li>
+            <li className="rounded-xl bg-purple-50 border border-purple-100 px-4 py-3">No personal data collected from children</li>
+            <li className="rounded-xl bg-purple-50 border border-purple-100 px-4 py-3">Built with dual-layer safety checks to keep content child-appropriate.</li>
+          </ul>
+        </section>
+
+        <section className="bg-white rounded-3xl border border-purple-100 p-6 sm:p-8 mb-8">
+          <h2 className="text-2xl sm:text-3xl font-black text-purple-800 mb-5">Simple pricing</h2>
+          <div className="grid gap-4 sm:grid-cols-2 mb-6">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <p className="text-sm uppercase tracking-wider font-extrabold text-slate-500 mb-2">Free</p>
+              <p className="text-lg font-bold text-slate-700">5 questions per day</p>
+            </div>
+            <div className="rounded-2xl border border-purple-200 bg-purple-50 p-5">
+              <p className="text-sm uppercase tracking-wider font-extrabold text-purple-500 mb-2">Paid</p>
+              <p className="text-lg font-bold text-slate-700 mb-1">Unlimited questions</p>
+              <p className="font-semibold text-slate-600">One subscription for all your kids</p>
+              <p className="mt-3 text-2xl font-black text-purple-700">$6.99/month</p>
+              <p className="mt-1 text-xs text-slate-500">Less than a coffee per month ☕</p>
+            </div>
+          </div>
+          <button
+            onClick={handleTryNow}
+            className="inline-flex items-center justify-center rounded-2xl bg-purple-600 hover:bg-purple-700 text-white text-base sm:text-lg font-bold px-6 py-3 transition-transform active:scale-95"
+          >
+            Unlock unlimited curiosity
+          </button>
+        </section>
+
+        <footer className="text-sm text-slate-500 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between pb-2">
+          <div className="flex items-center gap-4">
+            <a href="/privacy" className="hover:text-purple-700 font-semibold">Privacy Policy</a>
+            <a href="/terms" className="hover:text-purple-700 font-semibold">Terms of Use</a>
+          </div>
+          <div className="flex flex-col sm:items-end gap-1">
+            <a href="mailto:hello@curiosityengine.kids" className="hover:text-purple-700 font-semibold">hello@curiosityengine.kids</a>
+            <p className="text-xs text-slate-400">Designed in Australia 🇦🇺</p>
+          </div>
+        </footer>
+      </div>
+
+      {showSafetyModal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center px-4 z-50">
+          <div className="w-full max-w-lg bg-white rounded-3xl border border-purple-100 shadow-xl p-6">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <h3 className="text-xl font-black text-purple-800">How safety works</h3>
+              <button
+                onClick={() => setShowSafetyModal(false)}
+                className="text-sm font-bold text-slate-500 hover:text-slate-700"
+                aria-label="Close safety details"
+              >
+                Close
+              </button>
+            </div>
+            <ul className="space-y-2 text-slate-700 text-sm leading-relaxed">
+              <li>Requests pass through a first safety layer that blocks harmful or inappropriate intent.</li>
+              <li>A second safety layer checks content rules before answers are delivered.</li>
+              <li>Parent controls and child profiles keep family access separated.</li>
+              <li>No ads and no distraction-heavy feed design.</li>
+            </ul>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LegalScreen({ title, updated, intro, sections }) {
+  return (
+    <div className="min-h-[100dvh] bg-gradient-to-br from-sky-100 via-purple-50 to-pink-100 text-slate-800">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
+        <div className="bg-white rounded-3xl border border-purple-100 p-6 sm:p-8">
+          <a href="/" className="inline-flex items-center text-sm font-bold text-purple-600 hover:text-purple-700 mb-4">← Back</a>
+          <h1 className="text-3xl font-black text-purple-800 mb-2">{title}</h1>
+          <p className="text-sm text-slate-500 mb-6">{updated}</p>
+          {intro && <p className="text-slate-600 leading-relaxed mb-6">{intro}</p>}
+          <div className="space-y-5">
+            {sections.map((section) => (
+              <section key={section.heading}>
+                <h2 className="text-lg font-black text-slate-800 mb-1">{section.heading}</h2>
+                <p className="text-slate-600 leading-relaxed">{section.body}</p>
+                {Array.isArray(section.items) && section.items.length > 0 && (
+                  <ul className="mt-2 space-y-1 text-slate-600 list-disc pl-5">
+                    {section.items.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
