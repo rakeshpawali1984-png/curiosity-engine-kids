@@ -1,14 +1,14 @@
 const CARD_STYLES = [
-  "bg-orange-100 hover:bg-orange-200 border-orange-300 hover:border-orange-400",
-  "bg-green-100 hover:bg-green-200 border-green-300 hover:border-green-400",
+  "bg-purple-100 hover:bg-purple-200 border-purple-300 hover:border-purple-400",
   "bg-violet-100 hover:bg-violet-200 border-violet-300 hover:border-violet-400",
-  "bg-blue-100 hover:bg-blue-200 border-blue-300 hover:border-blue-400",
-  "bg-teal-100 hover:bg-teal-200 border-teal-300 hover:border-teal-400",
+  "bg-fuchsia-100 hover:bg-fuchsia-200 border-fuchsia-300 hover:border-fuchsia-400",
+  "bg-indigo-100 hover:bg-indigo-200 border-indigo-300 hover:border-indigo-400",
+  "bg-sky-100 hover:bg-sky-200 border-sky-300 hover:border-sky-400",
   "bg-pink-100 hover:bg-pink-200 border-pink-300 hover:border-pink-400",
-  "bg-yellow-100 hover:bg-yellow-200 border-yellow-300 hover:border-yellow-400",
   "bg-rose-100 hover:bg-rose-200 border-rose-300 hover:border-rose-400",
-  "bg-cyan-100 hover:bg-cyan-200 border-cyan-300 hover:border-cyan-400",
-  "bg-lime-100 hover:bg-lime-200 border-lime-300 hover:border-lime-400",
+  "bg-blue-100 hover:bg-blue-200 border-blue-300 hover:border-blue-400",
+  "bg-purple-200 hover:bg-purple-300 border-purple-300 hover:border-purple-400",
+  "bg-purple-50 hover:bg-purple-100 border-purple-200 hover:border-purple-300",
 ];
 
 export default function HomeScreen({ topics, onSelect }) {
@@ -30,7 +30,7 @@ export default function HomeScreen({ topics, onSelect }) {
           <button
             key={topic.id}
             onClick={() => onSelect(topic)}
-            className={`w-full flex items-center gap-4 p-5 rounded-3xl border-2 transition-all duration-200 text-left shadow-sm hover:shadow-md active:scale-95 ${CARD_STYLES[index % CARD_STYLES.length]}`}
+            className={`w-full flex items-center gap-4 p-5 rounded-3xl border transition-all duration-200 text-left shadow-sm hover:shadow-md active:scale-95 ${CARD_STYLES[index % CARD_STYLES.length]}`}
           >
             <span className="text-4xl">{topic.emoji}</span>
             <span className="text-xl font-bold text-gray-800 leading-snug">
@@ -40,8 +40,8 @@ export default function HomeScreen({ topics, onSelect }) {
         ))}
       </div>
 
-      <p className="text-gray-400 text-sm mt-8 mb-4">
-        {topics.length} topics · Stories · Quizzes · Badges
+      <p className="text-gray-400 text-sm mt-8 mb-4 text-center font-medium">
+        Safe answers · Real-world activities · Quizzes · Reward badges
       </p>
     </div>
   );

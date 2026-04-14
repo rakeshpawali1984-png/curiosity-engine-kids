@@ -852,7 +852,7 @@ function MainApp({
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-400">Demo Mode</p>
             <button
               onClick={() => {
-                window.location.href = "/";
+                window.location.href = "/app";
               }}
               className="rounded-full px-3 py-1.5 text-xs font-bold bg-purple-50 text-purple-600 hover:bg-purple-100 hover:text-purple-700"
             >
