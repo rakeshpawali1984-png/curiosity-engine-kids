@@ -27,7 +27,7 @@ export default function LoginScreen() {
             Parent Login
           </p>
           <h1 className="text-3xl font-black text-gray-800 mb-2">
-            Welcome to Curiosity Engine
+            Welcome to Whyroo
           </h1>
           <p className="text-gray-500 text-base mb-2">
             Create child profiles and track their learning journey.
