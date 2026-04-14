@@ -115,6 +115,71 @@ function invalidPayload() {
   return { ok: false, status: 400, error: 'Invalid request payload' };
 }
 
+function normalizeSafetyInput(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/0/g, 'o')
+    .replace(/1/g, 'i')
+    .replace(/3/g, 'e')
+    .replace(/4/g, 'a')
+    .replace(/5/g, 's')
+    .replace(/\$/g, 's')
+    .replace(/@/g, 'a')
+    .replace(/!/g, 'i')
+    .replace(/\|/g, 'i')
+    .replace(/\*/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+const UNSAFE_INPUT_RULES = [
+  {
+    pattern: /\b(hurt|harm|injure|attack|poison|kill|murder|stab|shoot|strangle|suffocate)\s+(someone|somebody|a person|person|people|them|him|her)\b/,
+    reason: 'Requests about hurting a person are not allowed.',
+  },
+  {
+    pattern: /\b(without leaving marks|without getting caught|secretly hurt|secretly poison)\b/,
+    reason: 'Hidden harm requests are not allowed.',
+  },
+  {
+    pattern: /\b(dangerous trap|booby trap|trap someone|trap a person|make a trap|build a trap)\b/,
+    reason: 'Dangerous trap instructions are not allowed.',
+  },
+  {
+    pattern: /\b(kill myself|hurt myself|self harm|suicide|end my life)\b/,
+    reason: 'Self-harm content is not allowed.',
+  },
+  {
+    pattern: /\b(make|build|create)\b[^.\n]{0,40}\b(bomb|weapon|poison)\b/,
+    reason: 'Dangerous weapon or poison requests are not allowed.',
+  },
+  {
+    pattern: /\b(get revenge|take revenge|pay them back physically)\b/,
+    reason: 'Revenge or violence requests are not allowed.',
+  },
+];
+
+function validateUserContentSafety(userContent) {
+  const normalized = normalizeSafetyInput(userContent);
+  if (!normalized) {
+    return { ok: false, status: 400, error: 'Invalid request payload' };
+  }
+
+  for (const rule of UNSAFE_INPUT_RULES) {
+    if (rule.pattern.test(normalized)) {
+      return {
+        ok: false,
+        status: 400,
+        error: 'BLOCKED',
+        code: 'UNSAFE_INPUT',
+        reason: rule.reason,
+      };
+    }
+  }
+
+  return { ok: true };
+}
+
 async function sanitizeOpenAiRequest(rawBody) {
   if (!rawBody || typeof rawBody !== 'object') {
     return invalidPayload();
@@ -131,6 +196,11 @@ async function sanitizeOpenAiRequest(rawBody) {
 
   let messagesInput = null;
   if (typeof rawBody.promptTemplateKey === 'string' && typeof rawBody.userContent === 'string') {
+    const safetyCheck = validateUserContentSafety(rawBody.userContent);
+    if (!safetyCheck.ok) {
+      return safetyCheck;
+    }
+
     const systemPrompt = await resolvePromptTemplate(rawBody.promptTemplateKey);
     if (!systemPrompt) {
       return invalidPayload();
@@ -252,7 +322,11 @@ export default async function handler(req, res) {
   const requestId = createRequestId();
   const validated = await sanitizeOpenAiRequest(req.body || {});
   if (!validated.ok) {
-    return res.status(validated.status || 400).json({ error: validated.error || 'Invalid request payload' });
+    return res.status(validated.status || 400).json({
+      error: validated.error || 'Invalid request payload',
+      code: validated.code,
+      reason: validated.reason,
+    });
   }
 
   if (API_AUTH_ENABLED && validated.experience === 'curious') {
