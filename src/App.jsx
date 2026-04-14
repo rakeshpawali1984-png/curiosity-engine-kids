@@ -42,7 +42,8 @@ export default function App() {
   const [parentPinFailedAttempts, setParentPinFailedAttempts] = useState(0);
   const [parentPinLockedUntil, setParentPinLockedUntil] = useState(0);
 
-  const path = window.location.pathname;
+  const rawPath = window.location.pathname;
+  const path = rawPath === "/" ? "/" : rawPath.replace(/\/+$/, "");
   const billingStatus = new URLSearchParams(window.location.search).get("billing");
   const isLandingRoute = path === "/";
   const isAppRoute = path === "/app";

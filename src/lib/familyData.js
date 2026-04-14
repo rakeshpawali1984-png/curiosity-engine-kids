@@ -127,11 +127,24 @@ export async function signInWithGoogle() {
   const configuredRedirect = (import.meta.env.VITE_AUTH_REDIRECT_URL || "").trim();
   const origin = window.location.origin;
   const fallbackRedirect = `${origin}/app`;
+  const isLocalhost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
 
   // Keep explicit redirect URLs, but avoid defaulting back to landing/home.
-  let redirectTo = configuredRedirect || fallbackRedirect;
+  let redirectTo = configuredRedirect.replace(/\/+$/, "") || fallbackRedirect;
   if (redirectTo === origin || redirectTo === `${origin}/`) {
     redirectTo = fallbackRedirect;
+  }
+
+  // In local development, prefer the current local origin to avoid stale prod/preview env values.
+  if (isLocalhost) {
+    try {
+      const redirectUrl = new URL(redirectTo);
+      if (!["localhost", "127.0.0.1"].includes(redirectUrl.hostname)) {
+        redirectTo = fallbackRedirect;
+      }
+    } catch {
+      redirectTo = fallbackRedirect;
+    }
   }
 
   const { error } = await supabase.auth.signInWithOAuth({
