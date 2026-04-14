@@ -7,6 +7,7 @@ import BadgeScreen from "./BadgeScreen";
 import FamilyTopBar from "./FamilyTopBar";
 import { getBillingStatus } from "../lib/familyData";
 import { hasSupabaseConfig, supabase } from "../lib/supabaseClient";
+import { logger } from "../lib/logger";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // LAYER 1 — INPUT GUARD (regex + l33tspeak normalisation)
@@ -87,7 +88,7 @@ async function getProxyHeaders() {
 async function callOpenAI(promptTemplateKey, userContent, temperature = 0.7, jsonMode = false, promptType = "generic", questionId = null) {
   const label = `[WonderEngine] ${promptTemplateKey}`;
   const t0 = performance.now();
-  console.log(`${label} → request start (temp=${temperature}, userChars=${userContent.length})`);
+  logger.debug(`${label} → request start (temp=${temperature}, userChars=${userContent.length})`);
   const headers = await getProxyHeaders();
 
   const requestBody = {
@@ -111,7 +112,7 @@ async function callOpenAI(promptTemplateKey, userContent, temperature = 0.7, jso
   const tFetch = performance.now();
   const cacheStatus = res.headers.get("x-cache-status") || "none";
   const cacheLookup = res.headers.get("x-cache-lookup") || "none";
-  console.log(`${label} → HTTP response received in ${(tFetch - t0).toFixed(0)}ms (status=${res.status}, cache=${cacheStatus}, lookup=${cacheLookup})`);
+  logger.debug(`${label} → HTTP response received in ${(tFetch - t0).toFixed(0)}ms (status=${res.status}, cache=${cacheStatus}, lookup=${cacheLookup})`);
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -124,7 +125,7 @@ async function callOpenAI(promptTemplateKey, userContent, temperature = 0.7, jso
   const data = await res.json();
   const tDone = performance.now();
   const usage = data.usage || {};
-  console.log(
+  logger.debug(
     `${label} → done in ${(tDone - t0).toFixed(0)}ms` +
     ` | prompt_tokens=${usage.prompt_tokens ?? "?"}` +
     ` output_tokens=${usage.completion_tokens ?? "?"}` +
@@ -143,13 +144,13 @@ function stripFences(raw) {
 
 function parseJsonSafe(raw, label) {
   const stripped = stripFences(raw);
-  console.log(`[WonderEngine] ${label} — raw length=${raw.length}\nFirst 120: ${stripped.slice(0, 120)}\nLast  120: ${stripped.slice(-120)}`);
+  logger.debug(`[WonderEngine] ${label} — raw length=${raw.length}\nFirst 120: ${stripped.slice(0, 120)}\nLast  120: ${stripped.slice(-120)}`);
   let obj;
   try {
     obj = JSON.parse(stripped);
   } catch (e) {
     const pos = parseInt(e.message.match(/position (\d+)/)?.[1] ?? 0);
-    console.error(
+    logger.error(
       `[WonderEngine] ${label} JSON.parse failed at pos ${pos}:`, e.message,
       `\nContext [${pos - 40}…${pos + 40}]: >>>`,
       JSON.stringify(stripped.slice(Math.max(0, pos - 40), pos + 40)), `<<<`
@@ -157,7 +158,7 @@ function parseJsonSafe(raw, label) {
     const repaired = stripped.replace(/[\t]/g, " ").replace(/,(\s*[}\]])/g, "$1");
     try {
       obj = JSON.parse(repaired);
-      console.log(`[WonderEngine] ${label} repair succeeded ✅`);
+      logger.debug(`[WonderEngine] ${label} repair succeeded`);
     } catch { throw e; }
   }
   return obj;
@@ -290,14 +291,14 @@ function mergeDeep(partial, deep) {
 // - deepPromise resolves with activity+quiz+curiosity while user reads
 async function runPipeline(query, onPhaseChange, questionId) {
   const t0 = performance.now();
-  console.log(`[WonderEngine] pipeline start — query="${query}"`);
+  logger.debug(`[WonderEngine] pipeline start — query="${query}"`);
   onPhaseChange("creating");
 
   // Fire all three calls simultaneously:
   //   Fast creator  (~150 tok) → story + explanation shown immediately
   //   Deep creator  (~350 tok) → activity + quiz + curiosity, loads in background
   //   Bouncer       (~36 tok)  → safety check, runs concurrently
-  console.log("[WonderEngine] firing Fast + Deep + Bouncer in parallel…");
+  logger.debug("[WonderEngine] firing Fast + Deep + Bouncer in parallel");
 
   const fastPromise = callOpenAI(PROMPT_KEY_FAST, query, 0.7, true, "fast", questionId).then(parseFast);
   const deepPromise = callOpenAI(PROMPT_KEY_DEEP, query, 0.7, true, "deep", questionId).then(parseDeep);
@@ -316,7 +317,7 @@ async function runPipeline(query, onPhaseChange, questionId) {
   try {
     fastResult = await fastPromise;
   } catch (e) {
-    console.error("[WonderEngine] Fast creator failed:", e);
+    logger.error("[WonderEngine] Fast creator failed:", e);
     // Preserve quota errors so UI can show the correct upgrade CTA state.
     if (e?.code === "QUOTA_EXCEEDED") {
       throw e;
@@ -325,9 +326,9 @@ async function runPipeline(query, onPhaseChange, questionId) {
   }
 
   const tFast = performance.now();
-  console.log(`[WonderEngine] fast ready in ${(tFast - t0).toFixed(0)}ms — bouncer=${bouncerStatus}`);
+  logger.debug(`[WonderEngine] fast ready in ${(tFast - t0).toFixed(0)}ms - bouncer=${bouncerStatus}`);
 
-  console.log(`[WonderEngine] first paint ready in ${(tFast - t0).toFixed(0)}ms ✅`);
+  logger.info(`[WonderEngine] first paint ready in ${(tFast - t0).toFixed(0)}ms`);
   return { partial: fastResult, deepPromise, bouncerPromise };
 }
 
@@ -508,12 +509,12 @@ export default function CuriousScreen({
       bouncerPromise.then((bounce) => {
         if (bouncerPromiseRef.current !== bouncerPromise) return;
         if (String(bounce?.status || "").toUpperCase() === "UNSAFE") {
-          console.warn(`[WonderEngine] BLOCKED by bouncer — reason: ${bounce.reason}`);
+          logger.warn(`[WonderEngine] BLOCKED by bouncer - reason: ${bounce.reason}`);
           deepPromiseRef.current = null;
           setScreen("blocked");
         }
       }).catch((e) => {
-        console.error("[WonderEngine] bouncer failed:", e.message);
+        logger.error("[WonderEngine] bouncer failed:", e.message);
       });
 
       deepPromise.then((deep) => {
@@ -521,10 +522,10 @@ export default function CuriousScreen({
         if (deepPromiseRef.current === deepPromise) {
           setTopic((prev) => prev ? mergeDeep(prev, deep) : prev);
           setDeepReady(true);
-          console.log("[WonderEngine] deep content merged ✅");
+          logger.info("[WonderEngine] deep content merged");
         }
       }).catch((e) => {
-        console.error("[WonderEngine] deep content failed:", e.message);
+        logger.error("[WonderEngine] deep content failed:", e.message);
         // Non-fatal — user can still read story/explanation
       });
     } catch (e) {

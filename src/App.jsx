@@ -162,7 +162,7 @@ export default function App() {
 
   useEffect(() => {
     if (!isParentRoute || parentPortalUnlocked) return;
-    if (billingStatus !== "success") return;
+    if (billingStatus !== "success" && billingStatus !== "cancel") return;
 
     const userId = session?.user?.id;
     if (!userId) return;
@@ -170,7 +170,7 @@ export default function App() {
     const expectedUser = sessionStorage.getItem(BILLING_RETURN_USER_KEY);
     if (expectedUser !== userId) return;
 
-    // One-time bypass only for successful Stripe return initiated from portal.
+    // One-time bypass for Stripe return initiated from checkout flow.
     setParentPortalUnlocked(true);
     setParentPinFailedAttempts(0);
     setParentPinLockedUntil(0);

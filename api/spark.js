@@ -6,6 +6,7 @@ import { getCache, setCache } from './cache.js';
 import { parseBearerToken, validateSupabaseToken } from './auth.js';
 import { enforceDailyQuestionQuota } from './subscription.js';
 import { resolvePromptTemplate } from './promptTemplates.js';
+import { logger } from './logger.js';
 
 const CACHE_ASYNC_STORE = (process.env.CACHE_ASYNC_STORE || '').trim() === 'true';
 const CACHE_READ_ENABLED = (process.env.CACHE_READ_ENABLED || '').trim() === 'true';
@@ -44,7 +45,7 @@ function logPerf(requestId, payload) {
     return;
   }
 
-  console.log(`[perf][spark][${requestId}] ${JSON.stringify(payload)}`);
+  logger.debug(`[perf][spark][${requestId}] ${JSON.stringify(payload)}`);
 }
 
 function getClientIp(req) {
@@ -275,7 +276,7 @@ export default async function handler(req, res) {
         });
       }
     } catch (error) {
-      console.error('Quota check error:', error);
+      logger.error('Quota check error:', error);
     }
   }
 
@@ -297,7 +298,7 @@ export default async function handler(req, res) {
       if (cacheResult?.output) {
         res.setHeader('x-cache-lookup', lookupMetrics.lookupStatus || 'hit');
         res.setHeader('x-cache-status', `hit-${cacheResult.hitType}`);
-        console.log(`[cache] hit (${cacheResult.hitType})`);
+        logger.info(`[cache] hit (${cacheResult.hitType})`);
         logPerf(requestId, {
           outcome: 'cache-hit',
           hitType: cacheResult.hitType,
@@ -313,7 +314,7 @@ export default async function handler(req, res) {
         lookupError: err.message,
         ...lookupMetrics,
       });
-      console.error('Cache lookup error:', err);
+      logger.error('Cache lookup error:', err);
     }
   }
 
@@ -340,17 +341,17 @@ export default async function handler(req, res) {
       if (CACHE_ASYNC_STORE) {
         setCache(cacheInput, data, storeMetrics)
           .then(() => {
-            console.log('[cache] async store complete');
+            logger.debug('[cache] async store complete');
           })
           .catch((err) => {
-            console.error('Cache async store error:', err);
+            logger.error('Cache async store error:', err);
           });
       } else {
         try {
           await setCache(cacheInput, data, storeMetrics);
-          console.log('[cache] store complete');
+          logger.debug('[cache] store complete');
         } catch (err) {
-          console.error('Cache store error:', err);
+          logger.error('Cache store error:', err);
         }
       }
 
