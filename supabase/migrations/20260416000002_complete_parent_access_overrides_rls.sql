@@ -4,7 +4,6 @@
 -- Deny inserts from authenticated users
 create policy "parent_access_overrides_no_insert"
 on public.parent_access_overrides for insert
-using (false)
 with check (false);
 
 -- Deny updates from authenticated users

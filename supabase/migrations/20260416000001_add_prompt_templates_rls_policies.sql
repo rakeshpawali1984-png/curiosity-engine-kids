@@ -8,7 +8,6 @@ using (auth.role() = 'authenticated');
 -- Deny inserts from authenticated users
 create policy "prompt_templates_no_insert"
 on public.prompt_templates for insert
-using (false)
 with check (false);
 
 -- Deny updates from authenticated users
