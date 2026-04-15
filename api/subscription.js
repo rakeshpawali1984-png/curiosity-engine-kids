@@ -201,43 +201,55 @@ export async function enforceDailyQuestionQuota({
   const client = await getPool().connect();
 
   try {
-    let parentRes;
+    let statusAndUsageRes;
     try {
-      parentRes = await client.query(
+      statusAndUsageRes = await client.query(
         `
           select
-            p.id,
             coalesce(p.subscription_status, 'free') as subscription_status,
             exists (
               select 1
               from public.parent_access_overrides o
-              where o.user_id = p.id
+              where o.user_id = i.user_id
                 and lower(o.access_level) = 'full'
                 and (o.expires_at is null or o.expires_at > now())
-            ) as has_access_override
-          from public.parents p
-          where p.id = $1
+            ) as has_access_override,
+            count(u.*)::int as used,
+            coalesce(bool_or(u.question_id = $3), false) as already_counted
+          from (select $1::uuid as user_id) i
+          left join public.parents p
+            on p.id = i.user_id
+          left join public.parent_daily_question_usage u
+            on u.parent_id = i.user_id
+           and u.usage_date = $2
+          group by p.subscription_status, i.user_id
         `,
-        [userId]
+        [userId, usageDate, questionId]
       );
     } catch (error) {
       if (!isMissingOverridesTableError(error)) throw error;
-      parentRes = await client.query(
+      statusAndUsageRes = await client.query(
         `
           select
-            p.id,
             coalesce(p.subscription_status, 'free') as subscription_status,
-            false as has_access_override
-          from public.parents p
-          where p.id = $1
+            false as has_access_override,
+            count(u.*)::int as used,
+            coalesce(bool_or(u.question_id = $3), false) as already_counted
+          from (select $1::uuid as user_id) i
+          left join public.parents p
+            on p.id = i.user_id
+          left join public.parent_daily_question_usage u
+            on u.parent_id = i.user_id
+           and u.usage_date = $2
+          group by p.subscription_status, i.user_id
         `,
-        [userId]
+        [userId, usageDate, questionId]
       );
     }
 
-    const parent = parentRes.rows[0];
-    const subscriptionStatus = normalizeSubscriptionStatus(parent?.subscription_status || 'free');
-    const hasAccessOverride = Boolean(parent?.has_access_override);
+    const state = statusAndUsageRes.rows[0] || {};
+    const subscriptionStatus = normalizeSubscriptionStatus(state.subscription_status || 'free');
+    const hasAccessOverride = Boolean(state.has_access_override);
 
     if (isPaidStatus(subscriptionStatus) || hasAccessOverride) {
       const paidValue = {
@@ -255,21 +267,8 @@ export async function enforceDailyQuestionQuota({
       };
     }
 
-    const usageStateRes = await client.query(
-      `
-        select
-          count(*)::int as used,
-          coalesce(bool_or(question_id = $3), false) as already_counted
-        from public.parent_daily_question_usage
-        where parent_id = $1
-          and usage_date = $2
-      `,
-      [userId, usageDate, questionId]
-    );
-
-    const usageState = usageStateRes.rows[0] || {};
-    const alreadyCounted = Boolean(usageState.already_counted);
-    const used = Number(usageState.used || 0);
+    const alreadyCounted = Boolean(state.already_counted);
+    const used = Number(state.used || 0);
 
     if (!alreadyCounted && used >= safeLimit) {
       return {

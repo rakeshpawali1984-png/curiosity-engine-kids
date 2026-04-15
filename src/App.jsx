@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 
 // Module-level dedup: Supabase fires SIGNED_IN twice during OAuth flows.
 // Track which user IDs already had a welcome email queued this page session.
@@ -74,6 +74,7 @@ export default function App() {
   const [parentSecurityReady, setParentSecurityReady] = useState(false);
   const [parentPinFailedAttempts, setParentPinFailedAttempts] = useState(0);
   const [parentPinLockedUntil, setParentPinLockedUntil] = useState(0);
+  const sessionUserIdRef = useRef(null);
 
   const [path, setPath] = useState(() => normalizePathname(window.location.pathname));
   const [search, setSearch] = useState(() => window.location.search);
@@ -154,6 +155,10 @@ export default function App() {
   };
 
   useEffect(() => {
+    sessionUserIdRef.current = session?.user?.id || null;
+  }, [session?.user?.id]);
+
+  useEffect(() => {
     if (!hasSupabaseConfig || !supabase) {
       setAuthReady(true);
       setFamilyReady(true);
@@ -176,6 +181,25 @@ export default function App() {
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       if (!mounted) return;
+
+      const previousUserId = sessionUserIdRef.current;
+      const nextUserId = nextSession?.user?.id || null;
+      const isSameUserSession =
+        Boolean(previousUserId) &&
+        Boolean(nextUserId) &&
+        previousUserId === nextUserId;
+
+      // Supabase can emit SIGNED_IN/TOKEN_REFRESHED for the same user when
+      // focus changes between tabs. Do not reset family state in this case.
+      if (isSameUserSession) {
+        setSession(nextSession);
+        setAuthReady(true);
+        if (_event === "USER_UPDATED") {
+          syncFamilyData(nextSession);
+        }
+        return;
+      }
+
       setSession(nextSession);
       setAuthReady(true);
       setFamilyReady(false);

@@ -1,5 +1,7 @@
 const tokenValidationCache = globalThis.__sparkTokenValidationCache || new Map();
 globalThis.__sparkTokenValidationCache = tokenValidationCache;
+const tokenValidationInFlight = globalThis.__sparkTokenValidationInFlight || new Map();
+globalThis.__sparkTokenValidationInFlight = tokenValidationInFlight;
 
 function decodeJwtPayload(token) {
   try {
@@ -32,31 +34,46 @@ export async function validateSupabaseToken(token) {
     return { ok: true, userId: cached.userId, email: cached.email || null };
   }
 
-  const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      apikey: supabaseAnon,
-    },
-  });
-
-  if (!response.ok) {
-    return { ok: false, status: 401, error: 'Invalid or expired access token' };
+  const inFlight = tokenValidationInFlight.get(token);
+  if (inFlight) {
+    return inFlight;
   }
 
-  const user = await response.json().catch(() => null);
-  if (!user?.id) {
-    return { ok: false, status: 401, error: 'Token did not resolve to a valid user' };
+  const validationPromise = (async () => {
+    const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        apikey: supabaseAnon,
+      },
+    });
+
+    if (!response.ok) {
+      return { ok: false, status: 401, error: 'Invalid or expired access token' };
+    }
+
+    const user = await response.json().catch(() => null);
+    if (!user?.id) {
+      return { ok: false, status: 401, error: 'Token did not resolve to a valid user' };
+    }
+
+    const jwtPayload = decodeJwtPayload(token);
+    const expMs = jwtPayload?.exp ? Number(jwtPayload.exp) * 1000 : Date.now() + 60_000;
+    const cacheExpiry = Math.min(expMs, Date.now() + 60_000);
+    tokenValidationCache.set(token, {
+      userId: user.id,
+      email: user.email || null,
+      expiresAt: cacheExpiry,
+    });
+
+    return { ok: true, userId: user.id, email: user.email || null };
+  })();
+
+  tokenValidationInFlight.set(token, validationPromise);
+
+  try {
+    return await validationPromise;
+  } finally {
+    tokenValidationInFlight.delete(token);
   }
-
-  const jwtPayload = decodeJwtPayload(token);
-  const expMs = jwtPayload?.exp ? Number(jwtPayload.exp) * 1000 : Date.now() + 60_000;
-  const cacheExpiry = Math.min(expMs, Date.now() + 60_000);
-  tokenValidationCache.set(token, {
-    userId: user.id,
-    email: user.email || null,
-    expiresAt: cacheExpiry,
-  });
-
-  return { ok: true, userId: user.id, email: user.email || null };
 }
