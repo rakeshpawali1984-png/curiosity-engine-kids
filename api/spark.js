@@ -284,13 +284,21 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  const requestStartedAt = nowMs();
+  const requestId = createRequestId();
+  let authMs = null;
+  let quotaMs = null;
+  let cacheLookupMs = null;
+
   if (API_AUTH_ENABLED) {
     const token = parseBearerToken(req.headers.authorization);
     if (!token) {
       return res.status(401).json({ error: 'Missing bearer token' });
     }
 
+    const tAuth0 = nowMs();
     const authResult = await validateSupabaseToken(token);
+    authMs = nowMs() - tAuth0;
     if (!authResult.ok) {
       return res.status(authResult.status || 401).json({ error: authResult.error || 'Unauthorized' });
     }
@@ -318,8 +326,6 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "API key not configured" });
   }
 
-  const requestStartedAt = nowMs();
-  const requestId = createRequestId();
   const validated = await sanitizeOpenAiRequest(req.body || {});
   if (!validated.ok) {
     return res.status(validated.status || 400).json({
@@ -329,8 +335,14 @@ export default async function handler(req, res) {
     });
   }
 
-  if (API_AUTH_ENABLED && validated.experience === 'curious') {
+  const shouldEnforceQuota =
+    API_AUTH_ENABLED &&
+    validated.experience === 'curious' &&
+    (validated.promptType === 'fast' || validated.promptType === 'generic');
+
+  if (shouldEnforceQuota) {
     try {
+      const tQuota0 = nowMs();
       const quotaResult = await enforceDailyQuestionQuota({
         userId: req.authUserId,
         email: req.authUserEmail,
@@ -338,6 +350,7 @@ export default async function handler(req, res) {
         experience: validated.experience,
         dailyLimit: FREE_DAILY_QUESTION_LIMIT,
       });
+      quotaMs = nowMs() - tQuota0;
 
       if (!quotaResult.allowed) {
         return res.status(quotaResult.status || 429).json({
@@ -368,7 +381,9 @@ export default async function handler(req, res) {
   // 1. Try cache lookup (exact or vector)
   if (shouldRunLookup) {
     try {
+      const tCache0 = nowMs();
       const cacheResult = await getCache(cacheInput, lookupMetrics);
+      cacheLookupMs = nowMs() - tCache0;
       if (cacheResult?.output) {
         res.setHeader('x-cache-lookup', lookupMetrics.lookupStatus || 'hit');
         res.setHeader('x-cache-status', `hit-${cacheResult.hitType}`);
@@ -376,6 +391,9 @@ export default async function handler(req, res) {
         logPerf(requestId, {
           outcome: 'cache-hit',
           hitType: cacheResult.hitType,
+          authMs,
+          quotaMs,
+          cacheLookupMs,
           totalMs: nowMs() - requestStartedAt,
           ...lookupMetrics,
         });
@@ -384,6 +402,8 @@ export default async function handler(req, res) {
     } catch (err) {
       logPerf(requestId, {
         outcome: 'cache-lookup-error',
+        authMs,
+        quotaMs,
         totalMs: nowMs() - requestStartedAt,
         lookupError: err.message,
         ...lookupMetrics,
@@ -432,6 +452,9 @@ export default async function handler(req, res) {
       logPerf(requestId, {
         outcome: 'openai-success',
         upstreamStatus: upstream.status,
+        authMs,
+        quotaMs,
+        cacheLookupMs,
         upstreamMs,
         cacheStoreMode: CACHE_ASYNC_STORE ? 'async' : 'sync',
         totalMs: nowMs() - requestStartedAt,
@@ -444,6 +467,9 @@ export default async function handler(req, res) {
       logPerf(requestId, {
         outcome: 'openai-upstream-error',
         upstreamStatus: upstream.status,
+        authMs,
+        quotaMs,
+        cacheLookupMs,
         upstreamMs,
         totalMs: nowMs() - requestStartedAt,
         ...lookupMetrics,
@@ -454,6 +480,9 @@ export default async function handler(req, res) {
     res.setHeader('x-cache-status', 'proxy-error');
     logPerf(requestId, {
       outcome: 'proxy-error',
+      authMs,
+      quotaMs,
+      cacheLookupMs,
       totalMs: nowMs() - requestStartedAt,
       ...lookupMetrics,
       error: err.message || 'Proxy error',

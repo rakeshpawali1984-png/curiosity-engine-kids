@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import { getPool } from '../db.js';
 import { getEnvVar } from '../env.js';
+import { clearPaidStatusCache } from '../subscription.js';
 
 export const config = {
   api: {
@@ -143,6 +144,7 @@ export default async function handler(req, res) {
             periodEnd: null,
             planKey: 'unlimited_monthly',
           });
+          clearPaidStatusCache();
         }
         break;
       }
@@ -163,6 +165,7 @@ export default async function handler(req, res) {
           periodEnd,
           planKey: planKeyFromStatus(normalized),
         });
+        clearPaidStatusCache();
         break;
       }
 
@@ -175,6 +178,7 @@ export default async function handler(req, res) {
           periodEnd: null,
           planKey: 'free',
         });
+        clearPaidStatusCache();
         break;
       }
 

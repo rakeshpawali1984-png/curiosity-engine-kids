@@ -91,7 +91,8 @@ async function callOpenAI(promptTemplateKey, userContent, temperature = 0.7, jso
   const t0 = performance.now();
   logger.debug(`${label} → request start (temp=${temperature}, userChars=${userContent.length})`);
   const headers = await getProxyHeaders();
-
+  const tHeaders = performance.now();
+  logger.debug(`${label} → headers in ${(tHeaders - t0).toFixed(0)}ms`);
   const requestBody = {
     promptTemplateKey,
     userContent,
@@ -113,7 +114,7 @@ async function callOpenAI(promptTemplateKey, userContent, temperature = 0.7, jso
   const tFetch = performance.now();
   const cacheStatus = res.headers.get("x-cache-status") || "none";
   const cacheLookup = res.headers.get("x-cache-lookup") || "none";
-  logger.debug(`${label} → HTTP response received in ${(tFetch - t0).toFixed(0)}ms (status=${res.status}, cache=${cacheStatus}, lookup=${cacheLookup})`);
+  logger.debug(`${label} → HTTP response in ${(tFetch - tHeaders).toFixed(0)}ms [net] / ${(tFetch - t0).toFixed(0)}ms [total] (status=${res.status}, cache=${cacheStatus}, lookup=${cacheLookup})`);
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -650,15 +651,21 @@ export default function CuriousScreen({
   const bouncerPromiseRef = useRef(null);
   const activeSearchIdRef = useRef(null);
 
-  const refreshBillingStatus = async () => {
-    setBillingLoading(true);
+  const refreshBillingStatus = async ({ silent = false } = {}) => {
+    if (!silent) {
+      setBillingLoading(true);
+    }
     try {
       const status = await getBillingStatus();
       setBillingStatus(status);
     } catch {
-      setBillingStatus(null);
+      if (!silent) {
+        setBillingStatus(null);
+      }
     } finally {
-      setBillingLoading(false);
+      if (!silent) {
+        setBillingLoading(false);
+      }
     }
   };
 
@@ -729,6 +736,7 @@ export default function CuriousScreen({
       if (onRecordSearch) {
         activeSearchIdRef.current = await onRecordSearch(query);
       }
+      const tPipelineStart = performance.now();
       const { partial, deepPromise, bouncerPromise } = await runPipeline(query, () => {}, questionId, activeChild?.age_range);
       const partialTopic = buildPartialTopic(partial, query);
       setTopic(partialTopic);
@@ -754,7 +762,7 @@ export default function CuriousScreen({
         if (deepPromiseRef.current === deepPromise) {
           setTopic((prev) => prev ? mergeDeep(prev, deep) : prev);
           setDeepReady(true);
-          logger.info("[WonderEngine] deep content merged");
+          logger.info(`[WonderEngine] deep content merged in ${(performance.now() - tPipelineStart).toFixed(0)}ms total`);
         }
       }).catch((e) => {
         logger.error("[WonderEngine] deep content failed:", e.message);
@@ -777,7 +785,7 @@ export default function CuriousScreen({
         setScreen("error");
       }
     } finally {
-      refreshBillingStatus();
+      refreshBillingStatus({ silent: true });
     }
   };
 

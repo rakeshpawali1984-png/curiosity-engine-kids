@@ -1,5 +1,9 @@
 import { getPool } from './db.js';
 
+const PAID_STATUS_CACHE_TTL_MS = Math.max(0, Number(process.env.PAID_STATUS_CACHE_TTL_MS || '30000'));
+const paidStatusCache = globalThis.__paidStatusCache || new Map();
+globalThis.__paidStatusCache = paidStatusCache;
+
 function todayUtcDateString() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -31,6 +35,34 @@ function hasActiveFullOverride(override) {
 
 function isMissingOverridesTableError(error) {
   return error?.code === '42P01' && String(error?.message || '').includes('parent_access_overrides');
+}
+
+function getCachedPaidStatus(userId) {
+  if (!userId || PAID_STATUS_CACHE_TTL_MS <= 0) return null;
+  const entry = paidStatusCache.get(userId);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    paidStatusCache.delete(userId);
+    return null;
+  }
+  return entry.value;
+}
+
+function setCachedPaidStatus(userId, value) {
+  if (!userId || PAID_STATUS_CACHE_TTL_MS <= 0 || !value) return;
+  paidStatusCache.set(userId, {
+    value,
+    expiresAt: Date.now() + PAID_STATUS_CACHE_TTL_MS,
+  });
+}
+
+export function invalidatePaidStatusCache(userId) {
+  if (!userId) return;
+  paidStatusCache.delete(userId);
+}
+
+export function clearPaidStatusCache() {
+  paidStatusCache.clear();
 }
 
 async function ensureParentRow(client, userId, email) {
@@ -154,13 +186,21 @@ export async function enforceDailyQuestionQuota({
 
   const safeLimit = Number.isInteger(dailyLimit) && dailyLimit > 0 ? dailyLimit : 5;
   const usageDate = todayUtcDateString();
+  const cachedPaid = getCachedPaidStatus(userId);
+  if (cachedPaid) {
+    return {
+      allowed: true,
+      plan: cachedPaid.plan,
+      subscriptionStatus: 'active',
+      hasAccessOverride: Boolean(cachedPaid.hasAccessOverride),
+      accessSource: cachedPaid.accessSource,
+      cached: true,
+    };
+  }
+
   const client = await getPool().connect();
 
   try {
-    await client.query('begin');
-
-    await ensureParentRow(client, userId, email);
-
     let parentRes;
     try {
       parentRes = await client.query(
@@ -177,7 +217,6 @@ export async function enforceDailyQuestionQuota({
             ) as has_access_override
           from public.parents p
           where p.id = $1
-          for update
         `,
         [userId]
       );
@@ -191,7 +230,6 @@ export async function enforceDailyQuestionQuota({
             false as has_access_override
           from public.parents p
           where p.id = $1
-          for update
         `,
         [userId]
       );
@@ -202,44 +240,38 @@ export async function enforceDailyQuestionQuota({
     const hasAccessOverride = Boolean(parent?.has_access_override);
 
     if (isPaidStatus(subscriptionStatus) || hasAccessOverride) {
-      await client.query('commit');
-      return {
-        allowed: true,
+      const paidValue = {
         plan: hasAccessOverride ? 'override' : 'paid',
-        subscriptionStatus: 'active',
         hasAccessOverride,
         accessSource: hasAccessOverride ? 'override' : 'subscription',
       };
+      setCachedPaidStatus(userId, paidValue);
+      return {
+        allowed: true,
+        plan: paidValue.plan,
+        subscriptionStatus: 'active',
+        hasAccessOverride,
+        accessSource: paidValue.accessSource,
+      };
     }
 
-    const existingRes = await client.query(
+    const usageStateRes = await client.query(
       `
-        select 1
+        select
+          count(*)::int as used,
+          coalesce(bool_or(question_id = $3), false) as already_counted
         from public.parent_daily_question_usage
         where parent_id = $1
           and usage_date = $2
-          and question_id = $3
-        limit 1
       `,
       [userId, usageDate, questionId]
     );
 
-    const alreadyCounted = Boolean(existingRes.rows[0]);
-
-    const usedRes = await client.query(
-      `
-        select count(*)::int as used
-        from public.parent_daily_question_usage
-        where parent_id = $1
-          and usage_date = $2
-      `,
-      [userId, usageDate]
-    );
-
-    const used = usedRes.rows[0]?.used || 0;
+    const usageState = usageStateRes.rows[0] || {};
+    const alreadyCounted = Boolean(usageState.already_counted);
+    const used = Number(usageState.used || 0);
 
     if (!alreadyCounted && used >= safeLimit) {
-      await client.query('rollback');
       return {
         allowed: false,
         status: 429,
@@ -252,41 +284,33 @@ export async function enforceDailyQuestionQuota({
     }
 
     const shouldConsumeNow = mode === 'consume';
+    let inserted = false;
 
     if (!alreadyCounted && shouldConsumeNow) {
-      await client.query(
+      await ensureParentRow(client, userId, email);
+      const insertRes = await client.query(
         `
           insert into public.parent_daily_question_usage (parent_id, usage_date, question_id)
           values ($1, $2, $3)
           on conflict (parent_id, usage_date, question_id) do nothing
+          returning 1 as inserted
         `,
         [userId, usageDate, questionId]
       );
+      inserted = Boolean(insertRes.rows[0]?.inserted);
     }
-
-    const usedAfterRes = await client.query(
-      `
-        select count(*)::int as used
-        from public.parent_daily_question_usage
-        where parent_id = $1
-          and usage_date = $2
-      `,
-      [userId, usageDate]
-    );
-
-    await client.query('commit');
+    const usedAfter = used + (inserted ? 1 : 0);
 
     return {
       allowed: true,
       plan: 'free',
       subscriptionStatus,
       limit: safeLimit,
-      used: usedAfterRes.rows[0]?.used || used,
+      used: usedAfter,
       resetAt: nextUtcMidnightIso(),
-      counted: !alreadyCounted && shouldConsumeNow,
+      counted: inserted,
     };
   } catch (error) {
-    await client.query('rollback').catch(() => {});
     throw error;
   } finally {
     client.release();
