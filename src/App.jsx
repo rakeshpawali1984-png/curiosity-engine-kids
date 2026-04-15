@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 
 // Module-level dedup: Supabase fires SIGNED_IN twice during OAuth flows.
 // Track which user IDs already had a welcome email queued this page session.
@@ -6,17 +6,17 @@ const _welcomeEmailSent = new Set();
 import { topics } from "./data/topics";
 import { topicsSparkRaw } from "./data/topics-spark.js";
 import { normalizeTopicsSpark } from "./data/normalize";
-import HomeScreen from "./components/HomeScreen";
-import StoryScreen from "./components/StoryScreen";
-import ExplanationScreen from "./components/ExplanationScreen";
-import ActivityScreen from "./components/ActivityScreen";
-import QuizScreen from "./components/QuizScreen";
-import BadgeScreen from "./components/BadgeScreen";
-import CuriousScreen from "./components/CuriousScreen";
-import LoginScreen from "./components/LoginScreen";
-import ChildProfilesScreen from "./components/ChildProfilesScreen";
-import FamilyTopBar from "./components/FamilyTopBar";
-import JourneyScreen from "./components/JourneyScreen";
+import LoginScreen from "./components/LoginScreen"; // eager — first paint
+const HomeScreen = lazy(() => import("./components/HomeScreen"));
+const StoryScreen = lazy(() => import("./components/StoryScreen"));
+const ExplanationScreen = lazy(() => import("./components/ExplanationScreen"));
+const ActivityScreen = lazy(() => import("./components/ActivityScreen"));
+const QuizScreen = lazy(() => import("./components/QuizScreen"));
+const BadgeScreen = lazy(() => import("./components/BadgeScreen"));
+const CuriousScreen = lazy(() => import("./components/CuriousScreen"));
+const ChildProfilesScreen = lazy(() => import("./components/ChildProfilesScreen"));
+const FamilyTopBar = lazy(() => import("./components/FamilyTopBar"));
+const JourneyScreen = lazy(() => import("./components/JourneyScreen"));
 import { hasSupabaseConfig, supabase } from "./lib/supabaseClient";
 import {
   awardChildBadge,
@@ -34,6 +34,16 @@ const BILLING_RETURN_USER_KEY = "ce_billing_return_user";
 
 function normalizePathname(pathname) {
   return pathname === "/" ? "/" : pathname.replace(/\/+$/, "");
+}
+
+function AppLoadingFallback() {
+  return (
+    <div className="min-h-[100dvh] bg-gradient-to-br from-sky-100 via-purple-50 to-pink-100 flex items-center justify-center">
+      <div className="bg-white px-6 py-4 rounded-2xl shadow-md text-gray-600 font-semibold">
+        Loading...
+      </div>
+    </div>
+  );
 }
 
 async function getAuthHeaders() {
@@ -121,11 +131,18 @@ export default function App() {
     }
     try {
       await upsertParentFromSession(nextSession);
-      const security = await getParentSecurity(nextSession.user.id);
+      const [security, rows] = await Promise.all([
+        getParentSecurity(nextSession.user.id),
+        listChildProfiles(nextSession.user.id),
+      ]);
       setParentPinHash(security?.parent_pin_hash || null);
       setParentPinSalt(security?.parent_pin_salt || null);
       setParentSecurityReady(true);
-      await refreshChildren(nextSession.user.id);
+      setChildren(rows);
+      setActiveChildId((prev) => {
+        if (prev && rows.some((c) => c.id === prev)) return prev;
+        return rows[0]?.id || null;
+      });
     } catch (e) {
       console.error("Failed loading parent/children:", e.message);
       setParentPinHash(null);
@@ -510,7 +527,11 @@ export default function App() {
   }
 
   if (staticRouteContent) {
-    return staticRouteContent;
+    return (
+      <Suspense fallback={<AppLoadingFallback />}>
+        {staticRouteContent}
+      </Suspense>
+    );
   }
 
   if (!hasSupabaseConfig) {
@@ -530,16 +551,6 @@ export default function App() {
     );
   }
 
-  if (!authReady) {
-    return (
-      <div className="min-h-[100dvh] bg-gradient-to-br from-sky-100 via-purple-50 to-pink-100 flex items-center justify-center">
-        <div className="bg-white px-6 py-4 rounded-2xl shadow-md text-gray-600 font-semibold">
-          Loading...
-        </div>
-      </div>
-    );
-  }
-
   if (session && !familyReady) {
     return (
       <div className="min-h-[100dvh] bg-gradient-to-br from-sky-100 via-purple-50 to-pink-100 flex items-center justify-center">
@@ -550,7 +561,7 @@ export default function App() {
     );
   }
 
-  if (!session) {
+  if (!authReady || !session) {
     return <LoginScreen />;
   }
 
@@ -582,18 +593,20 @@ export default function App() {
     }
 
     return (
-      <ChildProfilesScreen
-        parent={{ id: session.user.id, email: session.user.email }}
-        children={children}
-        activeChildId={activeChildId}
-        onSelectChild={(id) => setActiveChildId(id)}
-        onChildrenUpdated={() => refreshChildren(session.user.id)}
-        onChangeParentPin={changeParentPin}
-        onSignOut={handleSignOut}
-        onDone={() => {
-          navigateTo("/app");
-        }}
-      />
+      <Suspense fallback={<AppLoadingFallback />}>
+        <ChildProfilesScreen
+          parent={{ id: session.user.id, email: session.user.email }}
+          children={children}
+          activeChildId={activeChildId}
+          onSelectChild={(id) => setActiveChildId(id)}
+          onChildrenUpdated={() => refreshChildren(session.user.id)}
+          onChangeParentPin={changeParentPin}
+          onSignOut={handleSignOut}
+          onDone={() => {
+            navigateTo("/app");
+          }}
+        />
+      </Suspense>
     );
   }
 
@@ -612,21 +625,27 @@ export default function App() {
   }
 
   if (showJourney) {
-    return <JourneyScreen activeChild={activeChild} onBackHome={() => setShowJourney(false)} />;
+    return (
+      <Suspense fallback={<AppLoadingFallback />}>
+        <JourneyScreen activeChild={activeChild} onBackHome={() => setShowJourney(false)} />
+      </Suspense>
+    );
   }
 
   if (isAppRoute) {
     return (
-      <CuriousScreen
-        activeChild={activeChild}
-        onOpenJourney={() => setShowJourney(true)}
-        onOpenParentPortal={openParentPortal}
-        onOpenSite={() => navigateTo("/")}
-        onRecordSearch={(query) => handleTrackSearch(query, "curious")}
-        onAwardBadge={(badgeTitle, sourceSearchId) =>
-          handleTrackBadge(badgeTitle, sourceSearchId)
-        }
-      />
+      <Suspense fallback={<AppLoadingFallback />}>
+        <CuriousScreen
+          activeChild={activeChild}
+          onOpenJourney={() => setShowJourney(true)}
+          onOpenParentPortal={openParentPortal}
+          onOpenSite={() => navigateTo("/")}
+          onRecordSearch={(query) => handleTrackSearch(query, "curious")}
+          onAwardBadge={(badgeTitle, sourceSearchId) =>
+            handleTrackBadge(badgeTitle, sourceSearchId)
+          }
+        />
+      </Suspense>
     );
   }
 
@@ -635,15 +654,17 @@ export default function App() {
   }
 
   return (
-    <MainApp
-      activeChild={activeChild}
-      onOpenJourney={() => setShowJourney(true)}
-      onOpenParentPortal={openParentPortal}
-      onRecordSearch={(query) => handleTrackSearch(query, "topic_card")}
-      onAwardBadge={(badgeTitle, sourceSearchId) =>
-        handleTrackBadge(badgeTitle, sourceSearchId)
-      }
-    />
+    <Suspense fallback={<AppLoadingFallback />}>
+      <MainApp
+        activeChild={activeChild}
+        onOpenJourney={() => setShowJourney(true)}
+        onOpenParentPortal={openParentPortal}
+        onRecordSearch={(query) => handleTrackSearch(query, "topic_card")}
+        onAwardBadge={(badgeTitle, sourceSearchId) =>
+          handleTrackBadge(badgeTitle, sourceSearchId)
+        }
+      />
+    </Suspense>
   );
 }
 
