@@ -15,11 +15,40 @@ function getStripeClient() {
 }
 
 const APP_BASE_URL = getEnvVar('APP_BASE_URL', 'http://localhost:5173');
+const VITE_AUTH_REDIRECT_URL = getEnvVar('VITE_AUTH_REDIRECT_URL');
+const VERCEL_URL = getEnvVar('VERCEL_URL');
+
+function normalizeOrigin(value) {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return null;
+
+  try {
+    return new URL(trimmed).origin;
+  } catch {
+    try {
+      return new URL(`https://${trimmed.replace(/^https?:\/\//, '')}`).origin;
+    } catch {
+      return null;
+    }
+  }
+}
+
+function getAllowedOrigins() {
+  return new Set(
+    [APP_BASE_URL, VITE_AUTH_REDIRECT_URL, VERCEL_URL]
+      .map(normalizeOrigin)
+      .filter(Boolean)
+  );
+}
 
 function resolveBaseUrl(req) {
-  const originHeader = String(req?.headers?.origin || '').trim();
-  if (originHeader) return originHeader;
-  return APP_BASE_URL;
+  const fallbackOrigin = normalizeOrigin(APP_BASE_URL) || 'http://localhost:5173';
+  const requestedOrigin = normalizeOrigin(req?.headers?.origin || '');
+  if (requestedOrigin && getAllowedOrigins().has(requestedOrigin)) {
+    return requestedOrigin;
+  }
+
+  return fallbackOrigin;
 }
 
 async function getStripeCustomerId(userId) {

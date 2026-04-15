@@ -1,12 +1,32 @@
 import { Resend } from "resend";
+import { parseBearerToken, validateSupabaseToken } from "./auth.js";
 import { logger } from "./logger.js";
 import { getEnvVar } from "./env.js";
 
 const FROM = "Rakesh at Whyroo <hello@whyroo.com>";
 
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  const token = parseBearerToken(req.headers.authorization);
+  if (!token) {
+    return res.status(401).json({ error: "Missing bearer token" });
+  }
+
+  const authResult = await validateSupabaseToken(token);
+  if (!authResult.ok) {
+    return res.status(authResult.status || 401).json({ error: authResult.error || "Unauthorized" });
   }
 
   const apiKey = getEnvVar("RESEND_API_KEY");
@@ -15,13 +35,14 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, skipped: true });
   }
 
-  const { email, name } = req.body || {};
+  const email = authResult.email;
+  const { name } = req.body || {};
   if (!email || typeof email !== "string" || !email.includes("@")) {
-    return res.status(400).json({ error: "Invalid email" });
+    return res.status(400).json({ error: "Authenticated user email is unavailable" });
   }
 
   const firstName = (typeof name === "string" && name.trim()) || "there";
-  const safeFirstName = firstName.slice(0, 60);
+  const safeFirstName = escapeHtml(firstName.slice(0, 60));
 
   try {
     const resend = new Resend(apiKey);

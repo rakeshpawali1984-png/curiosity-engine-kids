@@ -36,6 +36,21 @@ function normalizePathname(pathname) {
   return pathname === "/" ? "/" : pathname.replace(/\/+$/, "");
 }
 
+async function getAuthHeaders() {
+  const headers = { "Content-Type": "application/json" };
+  if (!hasSupabaseConfig || !supabase) {
+    return headers;
+  }
+
+  const { data } = await supabase.auth.getSession();
+  const token = data?.session?.access_token;
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  return headers;
+}
+
 export default function App() {
   const [session, setSession] = useState(null);
   const [authReady, setAuthReady] = useState(false);
@@ -170,11 +185,11 @@ export default function App() {
             user.user_metadata?.name ||
             user.email?.split("@")[0] ||
             "";
-          fetch("/api/send-welcome-email", {
+          getAuthHeaders().then((headers) => fetch("/api/send-welcome-email", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: user.email, name }),
-          }).catch(() => {/* fire-and-forget — never block sign-in */});
+            headers,
+            body: JSON.stringify({ name }),
+          })).catch(() => {/* fire-and-forget — never block sign-in */});
         }
       }
       syncFamilyData(nextSession);
