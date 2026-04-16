@@ -224,7 +224,11 @@ export default function ChildProfilesScreen({
   const formattedCurrentPeriodEnd = billingStatus?.currentPeriodEnd
     ? new Date(billingStatus.currentPeriodEnd).toLocaleDateString()
     : null;
-  const showPortalReturnHint = billingFlowStatus === "portal-return" && isPaidPlan && !isPastDue;
+  const showPortalReturnHint =
+    billingFlowStatus === "portal-return" &&
+    isPaidPlan &&
+    !isPastDue &&
+    Boolean(formattedCurrentPeriodEnd);
   const superpowerSummary = summarizeCuriositySuperpowers(history);
   const dominantPower = superpowerSummary.dominant;
 

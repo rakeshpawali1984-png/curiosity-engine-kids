@@ -107,6 +107,11 @@ function planKeyFromStatus(status) {
   return normalizeSubscriptionStatus(status) === 'active' ? 'unlimited_monthly' : 'free';
 }
 
+function toPeriodEndIso(subscription) {
+  const ts = subscription?.current_period_end;
+  return ts ? new Date(ts * 1000).toISOString() : null;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -136,12 +141,27 @@ export default async function handler(req, res) {
         const session = event.data.object;
         const parentUserId = extractParentUserId(session);
         if (parentUserId) {
+          let periodEnd = null;
+          const subscriptionId = typeof session.subscription === 'string'
+            ? session.subscription
+            : session.subscription?.id;
+
+          if (subscriptionId) {
+            try {
+              const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+              periodEnd = toPeriodEndIso(subscription);
+            } catch {
+              // Period end will be filled by customer.subscription.updated/create events.
+              periodEnd = null;
+            }
+          }
+
           await updateParentSubscriptionByUserId({
             parentUserId,
             stripeCustomerId: session.customer,
             subscriptionId: session.subscription,
             status: 'active',
-            periodEnd: null,
+            periodEnd,
             planKey: 'unlimited_monthly',
           });
           clearPaidStatusCache();
@@ -154,9 +174,7 @@ export default async function handler(req, res) {
       case 'customer.subscription.created': {
         const subscription = event.data.object;
         const normalized = normalizeSubscriptionStatus(subscription.status);
-        const periodEnd = subscription.current_period_end
-          ? new Date(subscription.current_period_end * 1000).toISOString()
-          : null;
+        const periodEnd = toPeriodEndIso(subscription);
 
         await updateParentSubscriptionByStripeCustomer({
           stripeCustomerId: subscription.customer,
