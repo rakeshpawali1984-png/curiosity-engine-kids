@@ -221,6 +221,10 @@ export default function ChildProfilesScreen({
   const usedToday = Number(billingStatus?.usedToday || 0);
   const dailyLimit = Number(billingStatus?.dailyLimit || 5);
   const billingFlowStatus = new URLSearchParams(window.location.search).get("billing");
+  const formattedCurrentPeriodEnd = billingStatus?.currentPeriodEnd
+    ? new Date(billingStatus.currentPeriodEnd).toLocaleDateString()
+    : null;
+  const showPortalReturnHint = billingFlowStatus === "portal-return" && isPaidPlan && !isPastDue;
   const superpowerSummary = summarizeCuriositySuperpowers(history);
   const dominantPower = superpowerSummary.dominant;
 
@@ -569,7 +573,9 @@ export default function ChildProfilesScreen({
               </p>
               <p className="text-sm text-gray-500">
                 {isPaidPlan
-                  ? "Whyroo Unlimited is active"
+                  ? formattedCurrentPeriodEnd
+                    ? `Unlimited access is available through ${formattedCurrentPeriodEnd}`
+                    : "Whyroo Unlimited is active"
                   : "Free plan: 5 questions per day"}
               </p>
             </div>
@@ -591,9 +597,14 @@ export default function ChildProfilesScreen({
                 Usage today: {usedToday}/{dailyLimit} questions
               </p>
             )}
-            {isPaidPlan && !isPastDue && billingStatus?.currentPeriodEnd && (
+            {isPaidPlan && !isPastDue && formattedCurrentPeriodEnd && (
               <p className="text-sm text-emerald-700">
-                Current period ends: {new Date(billingStatus.currentPeriodEnd).toLocaleDateString()}
+                Current period ends: {formattedCurrentPeriodEnd}
+              </p>
+            )}
+            {showPortalReturnHint && (
+              <p className="text-xs text-emerald-700 mt-2">
+                If you scheduled cancellation, access remains active until the date above.
               </p>
             )}
           </div>

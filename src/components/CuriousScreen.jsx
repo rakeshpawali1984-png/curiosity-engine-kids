@@ -1287,30 +1287,30 @@ export default function CuriousScreen({
               {isOutOfQuestions ? "Questions used for today" : "Explore →"}
             </button>
 
-            <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
-              {billingLoading ? (
-                <p className="text-xs font-medium text-emerald-700">Checking questions left...</p>
-              ) : isOverrideAccess || isPaidPlan ? (
-                <p className="text-xs font-medium text-emerald-700">Whyroo Unlimited is active.</p>
-              ) : (
-                <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs text-emerald-800">
-                      <span className="font-bold">{questionsLeftToday}/{dailyLimit}</span> questions left today
-                    </p>
-                    <button
-                      onClick={openUpgradeModal}
-                      className="text-xs font-semibold text-emerald-800 underline underline-offset-2 hover:text-emerald-900 shrink-0"
-                    >
-                      Ask a grown-up
-                    </button>
+            {(billingLoading || (!isOverrideAccess && !isPaidPlan)) && (
+              <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+                {billingLoading ? (
+                  <p className="text-xs font-medium text-emerald-700">Checking questions left...</p>
+                ) : (
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs text-emerald-800">
+                        <span className="font-bold">{questionsLeftToday}/{dailyLimit}</span> questions left today
+                      </p>
+                      <button
+                        onClick={openUpgradeModal}
+                        className="text-xs font-semibold text-emerald-800 underline underline-offset-2 hover:text-emerald-900 shrink-0"
+                      >
+                        Ask a grown-up
+                      </button>
+                    </div>
+                    {isOutOfQuestions && (
+                      <p className="text-[11px] text-emerald-700 mt-1">{meterResetLabel}</p>
+                    )}
                   </div>
-                  {isOutOfQuestions && (
-                    <p className="text-[11px] text-emerald-700 mt-1">{meterResetLabel}</p>
-                  )}
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 

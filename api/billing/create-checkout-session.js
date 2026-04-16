@@ -74,7 +74,12 @@ function buildReturnUrl(baseUrl, returnPath, billingStatus) {
   return url.toString();
 }
 
-async function getOrCreateStripeCustomer(userId, email) {
+function isMissingCustomerError(error) {
+  return error?.code === 'resource_missing' && error?.param === 'customer';
+}
+
+async function getOrCreateStripeCustomer(userId, email, options = {}) {
+  const { forceCreate = false } = options;
   const stripe = getStripeClient();
   if (!stripe) {
     throw new Error('Billing is not configured');
@@ -106,6 +111,10 @@ async function getOrCreateStripeCustomer(userId, email) {
     );
 
     let stripeCustomerId = parentRes.rows[0]?.stripe_customer_id || null;
+
+    if (forceCreate) {
+      stripeCustomerId = null;
+    }
 
     if (!stripeCustomerId) {
       const customer = await stripe.customers.create({
@@ -168,11 +177,11 @@ export default async function handler(req, res) {
   try {
     const baseUrl = resolveBaseUrl(req);
     const returnPath = resolveReturnPath(requestBody.returnPath);
-    const customerId = await getOrCreateStripeCustomer(authResult.userId, authResult.email);
+    let customerId = await getOrCreateStripeCustomer(authResult.userId, authResult.email);
 
-    const session = await stripe.checkout.sessions.create({
+    const createSession = (customer) => stripe.checkout.sessions.create({
       mode: 'subscription',
-      customer: customerId,
+      customer,
       line_items: [{
         price: STRIPE_PRICE_MONTHLY_699,
         quantity: 1,
@@ -189,6 +198,18 @@ export default async function handler(req, res) {
         },
       },
     });
+
+    let session;
+    try {
+      session = await createSession(customerId);
+    } catch (error) {
+      if (!isMissingCustomerError(error)) {
+        throw error;
+      }
+
+      customerId = await getOrCreateStripeCustomer(authResult.userId, authResult.email, { forceCreate: true });
+      session = await createSession(customerId);
+    }
 
     return res.status(200).json({ ok: true, checkoutUrl: session.url });
   } catch (error) {
