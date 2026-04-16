@@ -1,8 +1,17 @@
+import { useEffect, useState } from "react";
 import ProgressBar from "./ProgressBar";
 
 export default function StoryScreen({ topic, onNext, onHome }) {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    setVisible(false);
+    const frame = requestAnimationFrame(() => setVisible(true));
+    return () => cancelAnimationFrame(frame);
+  }, [topic?.id]);
+
   return (
-    <div>
+    <div className={`transition-opacity duration-300 ${visible ? "opacity-100" : "opacity-0"}`}>
       <button onClick={onHome} className="mb-4 flex items-center gap-1 text-gray-400 hover:text-purple-600 font-semibold text-base transition-colors">
         ← Home
       </button>

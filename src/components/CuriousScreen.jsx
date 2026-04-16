@@ -71,6 +71,55 @@ const PROMPT_KEY_BOUNCER = "bouncer_system";
 
 const OPENAI_PROXY = "/api/spark";
 const PARENT_HINT_DISMISSED_KEY = "whyroo_parent_hint_dismissed";
+const LOADING_STEP_MIN_MS = 1200;
+const LOADING_STEP_MAX_MS = 1800;
+const LONG_WAIT_FACT_DELAY_MS = 5000;
+const LONG_WAIT_FACT_PROBABILITY = 0.35;
+
+const LOADING_NARRATIVE = {
+  intro: [
+    "🤔 Ooo... great question!",
+    "👀 Let's figure this out together...",
+    "✨ Roo is already on the trail!",
+  ],
+  gather: [
+    "Roo is hopping through ideas...",
+    "Roo is exploring to find the best clue...",
+    "Roo is sniffing out something interesting...",
+    "Roo is checking the smartest hints for this...",
+    "Roo is bouncing between clever possibilities...",
+    "Roo is tracking the spark behind your question...",
+  ],
+  create: [
+    "Roo is building your story...",
+    "Roo is mixing up a fun explanation...",
+    "Roo is putting the puzzle pieces together...",
+    "Roo is turning clues into a clear answer...",
+    "Roo is shaping this into a mini learning adventure...",
+    "Roo is stitching the best bits into one answer...",
+  ],
+  personalize: [
+    "Roo is making it perfect for you...",
+    "Roo is adding an extra fun touch...",
+    "Roo is getting this just right...",
+    "Roo is polishing your answer...",
+    "Roo is tailoring this to your curiosity...",
+    "Roo is tucking in your wow moment...",
+  ],
+  reassure: [
+    "Roo is double-checking everything...",
+    "Roo is making sure this is extra clear...",
+    "Roo is giving this one final polish...",
+  ],
+};
+
+const LOADING_STAGE_META = {
+  intro: { icon: "✨", label: "Getting started" },
+  gather: { icon: "🔍", label: "Gathering ideas" },
+  create: { icon: "✨", label: "Building answer" },
+  personalize: { icon: "🎯", label: "Personalizing" },
+  reassure: { icon: "✅", label: "Final check" },
+};
 
 async function getProxyHeaders() {
   const headers = { "Content-Type": "application/json" };
@@ -176,6 +225,21 @@ function shuffleQuiz(quiz) {
     const shuffled = [...q.options].sort(() => Math.random() - 0.5);
     return { ...q, options: shuffled, answer: shuffled.indexOf(correctText) };
   });
+}
+
+function randomBetween(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function pickNarrativeMessage(pool, lastMessage) {
+  if (!Array.isArray(pool) || pool.length === 0) return "";
+  if (pool.length === 1) return pool[0];
+
+  let candidate = pool[Math.floor(Math.random() * pool.length)];
+  while (candidate === lastMessage) {
+    candidate = pool[Math.floor(Math.random() * pool.length)];
+  }
+  return candidate;
 }
 
 function normalizeQuizType(type) {
@@ -574,26 +638,128 @@ const FUN_FACTS_EXTRA = [
 
 const FUN_FACTS = [...FUN_FACTS_BASE, ...FUN_FACTS_EXTRA].slice(0, 200);
 
-function LoadingCard() {
-  const [fact] = useState(() => FUN_FACTS[Math.floor(Math.random() * FUN_FACTS.length)]);
+const SURPRISE_QUESTIONS = [
+  "Why is the ocean salty?",
+  "Why do stars twinkle?",
+  "How do bees make honey?",
+  "Why do volcanoes erupt?",
+  "How do airplanes fly?",
+  "Why do we dream?",
+  "How does lightning happen?",
+  "Why do leaves change color?",
+  "How does a rainbow form?",
+  "Why do cats purr?",
+];
+
+function LoadingCard({ childName }) {
+  const [message, setMessage] = useState(() => pickNarrativeMessage(LOADING_NARRATIVE.intro, null));
+  const [stage, setStage] = useState("intro");
+  const [longWaitFact, setLongWaitFact] = useState(null);
+  const [reducedMotion, setReducedMotion] = useState(false);
+  const timersRef = useRef([]);
+  const lastMessageRef = useRef(message);
+  const usedNameLineRef = useRef(false);
+  const startedAtRef = useRef(Date.now());
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const applyReducedMotion = () => setReducedMotion(media.matches);
+    applyReducedMotion();
+
+    if (typeof media.addEventListener === "function") {
+      media.addEventListener("change", applyReducedMotion);
+      return () => media.removeEventListener("change", applyReducedMotion);
+    }
+
+    media.addListener(applyReducedMotion);
+    return () => media.removeListener(applyReducedMotion);
+  }, []);
+
+  useEffect(() => {
+    timersRef.current.forEach((id) => clearTimeout(id));
+    timersRef.current = [];
+    setLongWaitFact(null);
+
+    if (Math.random() < LONG_WAIT_FACT_PROBABILITY) {
+      const factTimer = setTimeout(() => {
+        const fact = FUN_FACTS[Math.floor(Math.random() * FUN_FACTS.length)];
+        setLongWaitFact(fact);
+      }, LONG_WAIT_FACT_DELAY_MS);
+      timersRef.current.push(factTimer);
+    }
+
+    if (reducedMotion) {
+      const staticLine = pickNarrativeMessage(LOADING_NARRATIVE.gather, null);
+      setMessage(staticLine);
+      setStage("gather");
+      lastMessageRef.current = staticLine;
+      return undefined;
+    }
+
+    const stageKeys = ["gather", "create", "personalize"];
+    const runStage = (index) => {
+      if (index >= stageKeys.length) return;
+
+      const delay = randomBetween(LOADING_STEP_MIN_MS, LOADING_STEP_MAX_MS);
+      const timerId = setTimeout(() => {
+        const elapsedMs = Date.now() - startedAtRef.current;
+        const stageKey = index === stageKeys.length - 1 && elapsedMs >= 4500 ? "reassure" : stageKeys[index];
+        let nextMessage = pickNarrativeMessage(LOADING_NARRATIVE[stageKey], lastMessageRef.current);
+
+        if (
+          stageKey === "personalize" &&
+          childName &&
+          !usedNameLineRef.current &&
+          Math.random() < 0.35
+        ) {
+          nextMessage = `${nextMessage} What do you think, ${childName}? 🤔`;
+          usedNameLineRef.current = true;
+        }
+
+        setMessage(nextMessage);
+        setStage(stageKey);
+        lastMessageRef.current = nextMessage;
+        runStage(index + 1);
+      }, delay);
+
+      timersRef.current.push(timerId);
+    };
+
+    runStage(0);
+
+    return () => {
+      timersRef.current.forEach((id) => clearTimeout(id));
+      timersRef.current = [];
+    };
+  }, [childName, reducedMotion]);
+
+  const stageMeta = LOADING_STAGE_META[stage] || LOADING_STAGE_META.intro;
 
   return (
     <div className="bg-white rounded-3xl shadow-lg p-8 text-center">
-      {/* Spinner */}
-      <div className="flex justify-center mb-6">
-        <div className="w-14 h-14 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin" />
+      <div className="flex flex-col items-center mb-3">
+        <div className="w-12 h-12 flex items-center justify-center text-4xl leading-none">
+          <span>{stageMeta.icon}</span>
+        </div>
+        <p className="text-xs text-purple-400 font-bold uppercase tracking-wider mt-1 mb-1">{stageMeta.label}</p>
+        <div className="w-6 h-6 flex items-center justify-center leading-none">
+          <span className={`inline-block ${reducedMotion ? "" : "animate-bounce"}`}>🦘</span>
+        </div>
       </div>
 
-      {/* Single engaging line */}
-      <p className="text-purple-700 font-bold text-xl mb-8">
-        Building your adventure! 🚀
+      <p className="text-purple-700 font-black text-xl leading-snug mb-4 min-h-[3.5rem] text-center">
+        {message}
       </p>
 
-      {/* Fun fact */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-2xl px-4 py-4">
-        <p className="text-xs font-bold text-yellow-600 uppercase tracking-wider mb-2">✨ Did you know?</p>
-        <p className="text-yellow-800 text-sm font-medium leading-snug">{fact}</p>
-      </div>
+      {longWaitFact && (
+        <div className="mt-1 rounded-xl border border-purple-100 bg-purple-50/70 px-3 py-2 text-left">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-purple-400 mb-1">Did you know?</p>
+          <p className="text-xs text-purple-700 font-semibold leading-snug">{longWaitFact}</p>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -1066,6 +1232,20 @@ export default function CuriousScreen({
           <div className="mb-6">
             <p className="text-center text-xs font-bold text-purple-400 uppercase tracking-widest mb-3">✨ Try one of these</p>
             <div className="flex flex-wrap gap-2 justify-center">
+              <button
+                onClick={() => {
+                  const current = input.trim();
+                  const candidates = SURPRISE_QUESTIONS.filter((q) => q !== current);
+                  const pool = candidates.length ? candidates : SURPRISE_QUESTIONS;
+                  const randomQuestion = pool[Math.floor(Math.random() * pool.length)];
+                  setInput(randomQuestion);
+                }}
+                className="flex items-center gap-1.5 bg-white hover:bg-purple-50 border-2 border-purple-100 hover:border-purple-300 text-gray-700 font-semibold text-sm px-3 py-2 rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-sm"
+              >
+                <span>🎲</span>
+                <span>Surprise Me!</span>
+              </button>
+
               {[
                 { emoji: "🦕", label: "Dinosaurs",      q: "Why did dinosaurs go extinct?" },
                 { emoji: "🌊", label: "Ocean",           q: "Why is the ocean salty?" },
@@ -1088,7 +1268,7 @@ export default function CuriousScreen({
         )}
 
         {/* Loading */}
-        {screen === "loading" && <LoadingCard />}
+        {screen === "loading" && <LoadingCard childName={activeChild?.name} />}
 
         {/* Blocked */}
         {screen === "blocked" && (
