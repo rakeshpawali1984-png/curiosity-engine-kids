@@ -1,7 +1,7 @@
 # System Architecture
 
 - Owner: TBD
-- Last updated: 2026-04-13
+- Last updated: 2026-04-16
 - Status: active
 - Related docs:
 	[../30-data/DATA_MODEL_AND_RLS.md](../30-data/DATA_MODEL_AND_RLS.md),
@@ -22,6 +22,7 @@
 2. Serverless API
 - endpoint /api/spark proxies OpenAI chat calls and cache logic
 - endpoint /api/cache (supporting helper module) encapsulates DB cache lookup/store
+- billing endpoints handle checkout, portal access, webhook sync, and status
 
 3. Data and auth
 - Supabase Postgres for family data + AI cache table
@@ -30,6 +31,28 @@
 4. External AI
 - OpenAI chat models for generation
 - OpenAI embeddings for semantic cache lookup
+
+## Runtime topology
+
+```mermaid
+flowchart LR
+	Child[Child UI /app] --> Spark[/api/spark/]
+	Classic[Classic UI /get-curious] --> Spark
+	Parent[Parent UI /parent] --> Billing[/api/billing/*/]
+	Landing[Landing /] --> AppState[App route state]
+	AppState --> Child
+	AppState --> Parent
+	AppState --> Classic
+
+	Spark --> OpenAI[(OpenAI Chat + Embeddings)]
+	Spark --> Cache[(Supabase Postgres cache)]
+	Spark --> Subs[(Subscription quota checks)]
+
+	Billing --> Stripe[(Stripe)]
+	Billing --> Parents[(parents table)]
+	Stripe --> Webhook[/api/billing/webhook/]
+	Webhook --> Parents
+```
 
 ## Frontend architecture details
 
@@ -58,6 +81,7 @@
 - reads manual cache-read flag
 - enforces backend-selected model via env (request model from browser is ignored)
 - validates and sanitizes request payload with bounded limits
+- server-side unsafe input blocking (including prompt-injection/jailbreak patterns)
 - returns generic client-facing validation and upstream errors (no policy detail leakage)
 - optional cache hit response with diagnostic headers
 - OpenAI call on miss
@@ -73,17 +97,50 @@
 - cache policy and status headers
 - timing logs for lookup/store/upstream phases
 
+## Safety pipeline (curious flow)
+
+```mermaid
+sequenceDiagram
+	participant U as Child User
+	participant C as CuriousScreen
+	participant A as /api/spark
+	participant O as OpenAI
+
+	U->>C: Ask question
+	C->>C: Client input safety pre-check
+	C->>A: creator_fast request
+	C->>A: creator_deep request
+	C->>A: bouncer_system request
+	A->>A: Server payload sanitize + jailbreak/unsafe regex
+	A->>O: Forward sanitized prompt
+	O-->>A: Response
+	A-->>C: fast + deep + bouncer responses
+	C->>C: Wait for fast AND bouncer before first paint
+	alt Bouncer UNSAFE
+		C-->>U: Blocked screen (no content flash)
+	else Bouncer SAFE
+		C-->>U: Story/explanation first paint
+		C-->>U: Deep content merged later
+	end
+```
+
 ## Route model
 
-1. / -> curious experience
-2. /get-curious -> classic experience
-3. /parent -> parent portal with PIN gate
+1. / -> landing page (marketing + pricing + upgrade CTA)
+2. /app -> child curious experience (primary learning surface)
+3. /get-curious -> classic topic-card experience
+4. /parent -> parent portal with PIN gate
+5. /demo, /privacy, /terms -> static/supporting routes
 
 ## Configuration model
 
 1. frontend env exposure via Vite prefixes
 - VITE_
 - SUPABASE_
+
+Important:
+- do not define secrets in VITE_* keys
+- OpenAI and Stripe secrets must stay server-only
 
 2. backend env usage
 - OPENAI_API_KEY
@@ -96,11 +153,13 @@
 1. Supabase auth session identifies parent user
 2. RLS enforces parent-owned reads/writes for child data
 3. Parent PIN is an application-layer gate for parent route UX
-4. AI content safety uses guard + bouncer + sanitizer pipeline on curious flow
+4. AI content safety uses client pre-check + server sanitize/block + bouncer on curious flow
+5. Bouncer decision is now enforced before first paint in curious flow
 
 ## Known architectural tradeoffs
 
 1. Parent PIN verification is client-side (hash+salt pulled by authenticated parent)
 2. Parent route gate is app-level, not a server middleware gate
 3. Caching policy is manual env-driven to favor operational control
+4. Client pre-check improves UX but is not a security boundary; server checks remain authoritative
 

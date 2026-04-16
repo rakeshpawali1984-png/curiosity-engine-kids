@@ -956,12 +956,21 @@ function LandingPage({
             <p className="text-sm text-slate-600 leading-relaxed mb-3">
               {PREVIEW_EXAMPLES[previewIndex].story}
             </p>
-            <button
-              onClick={() => goTo(previewIndex + 1)}
-              className="text-xs font-bold text-purple-500 hover:text-purple-700 transition-colors"
-            >
-              Try another example →
-            </button>
+            <div className="flex items-center justify-between gap-3">
+              <button
+                onClick={() => goTo(previewIndex + 1)}
+                className="text-xs font-bold text-purple-500 hover:text-purple-700 transition-colors"
+              >
+                Try another example →
+              </button>
+              <span className="text-slate-300">|</span>
+              <a
+                href="/demo"
+                className="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                Or explore full demo →
+              </a>
+            </div>
           </div>
         </section>
 
@@ -1205,11 +1214,18 @@ function MainApp({
   demoMode = false,
   onAskGrownUp,
 }) {
+  const DEMO_LOADING_MESSAGES = [
+    "Roo is already on the trail!",
+    "Roo is building your story...",
+    "Roo is turning clues into a clear answer...",
+  ];
   const [screen, setScreen] = useState("home");
   const [currentTopic, setCurrentTopic] = useState(null);
   const [pack, setPack] = useState("original"); // "original" | "spark"
   const [currentSearchId, setCurrentSearchId] = useState(null);
   const [quizResult, setQuizResult] = useState(null);
+  const [demoLoadingMessage, setDemoLoadingMessage] = useState(DEMO_LOADING_MESSAGES[0]);
+  const demoLoadingTimerRef = useRef(null);
 
   const activePack = pack === "original" ? topics : topicsSpark;
   const visibleTopics = useMemo(() => {
@@ -1218,15 +1234,51 @@ function MainApp({
     return shuffled.slice(0, 4);
   }, [activePack, demoMode]);
 
+  const clearDemoLoadingTimer = () => {
+    if (demoLoadingTimerRef.current) {
+      window.clearTimeout(demoLoadingTimerRef.current);
+      demoLoadingTimerRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      clearDemoLoadingTimer();
+    };
+  }, []);
+
   const selectTopic = async (topic) => {
+    clearDemoLoadingTimer();
     setCurrentTopic(topic);
     setQuizResult(null);
+
+    if (demoMode) {
+      setDemoLoadingMessage(DEMO_LOADING_MESSAGES[0]);
+      setScreen("loading");
+
+      let stepIndex = 0;
+      const runNextStep = () => {
+        stepIndex += 1;
+        if (stepIndex >= DEMO_LOADING_MESSAGES.length) {
+          setScreen("story");
+          return;
+        }
+
+        setDemoLoadingMessage(DEMO_LOADING_MESSAGES[stepIndex]);
+        demoLoadingTimerRef.current = window.setTimeout(runNextStep, 650);
+      };
+
+      demoLoadingTimerRef.current = window.setTimeout(runNextStep, 700);
+      return;
+    }
+
     setScreen("story");
     const searchId = onRecordSearch ? await onRecordSearch(topic.title) : null;
     setCurrentSearchId(searchId);
   };
 
   const goHome = () => {
+    clearDemoLoadingTimer();
     setScreen("home");
     setCurrentTopic(null);
     setCurrentSearchId(null);
@@ -1262,6 +1314,14 @@ function MainApp({
 
         {demoMode && (
           <div className="bg-white/85 backdrop-blur rounded-2xl border border-purple-100 px-3 py-2 mb-4 flex items-center justify-between gap-3">
+            <button
+              onClick={() => {
+                onAskGrownUp?.();
+              }}
+              className="text-xs font-bold text-purple-600 hover:text-purple-700 transition-colors"
+            >
+              ← Back to Home
+            </button>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-400">Demo Mode</p>
             <button
               onClick={() => {
@@ -1282,6 +1342,30 @@ function MainApp({
               onPackChange={setPack}
               onSelect={selectTopic}
             />
+          )}
+
+          {screen === "loading" && (
+            <div>
+              <div className="text-center mb-6 mt-4">
+                <p className="text-4xl font-black text-purple-700 mb-1 tracking-tight">🦘 Whyroo</p>
+                <p className="text-gray-500 text-lg">Ask anything and turn why into wow.</p>
+              </div>
+
+              <div className="bg-white rounded-3xl shadow-lg border border-purple-100 p-8 text-center">
+                <div className="w-12 h-12 mx-auto mb-2 flex items-center justify-center text-4xl leading-none">
+                  <span>✨</span>
+                </div>
+                <p className="text-xs text-purple-400 font-bold uppercase tracking-wider mb-1">
+                  Building answer
+                </p>
+                <div className="w-6 h-6 mx-auto flex items-center justify-center leading-none mb-3">
+                  <span className="inline-block animate-bounce">🦘</span>
+                </div>
+                <p className="text-purple-700 font-black text-xl leading-snug min-h-[3.5rem]">
+                  {demoLoadingMessage}
+                </p>
+              </div>
+            </div>
           )}
 
           {screen === "story" && (

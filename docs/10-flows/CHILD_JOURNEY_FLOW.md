@@ -1,7 +1,7 @@
 # Child Journey Flow
 
 - Owner: TBD
-- Last updated: 2026-04-13
+- Last updated: 2026-04-16
 - Status: active
 - Related docs:
 	[../00-product/PRODUCT_OVERVIEW.md](../00-product/PRODUCT_OVERVIEW.md),
@@ -22,9 +22,10 @@ Child mode should be simple and focused:
 
 ## Main route and view modes
 
-1. Curious mode at /
-2. Classic mode at /get-curious
-3. Journey mode via in-app state toggle
+1. Landing is at / (not a child learning screen)
+2. Curious mode at /app (primary child learning screen)
+3. Classic mode at /get-curious
+4. Journey mode via in-app state toggle
 
 ## Child identity lifecycle
 
@@ -56,6 +57,7 @@ Pipeline model:
 2. Fast generation returns title, story, explanation.
 3. Deep generation returns activity, quiz, curiosity prompts.
 4. Bouncer checks for unsafe requests/content category.
+5. Story screen first paint waits for fast + bouncer SAFE result (no unsafe content flash).
 
 Quiz model in curious flow:
 
@@ -66,6 +68,30 @@ Data side effects:
 
 1. Query logs as child search with search type curious.
 2. Quiz completion awards child badge.
+
+```mermaid
+sequenceDiagram
+	participant C as Child
+	participant UI as CuriousScreen (/app)
+	participant API as /api/spark
+	participant AI as OpenAI
+
+	C->>UI: Submit question
+	UI->>UI: Local safety check + length guard
+	UI->>API: fast request
+	UI->>API: deep request
+	UI->>API: bouncer request
+	API->>AI: Forward sanitized requests
+	AI-->>API: Responses
+	API-->>UI: fast/deep/bouncer payloads
+	UI->>UI: Wait for fast + bouncer
+	alt bouncer = UNSAFE
+		UI-->>C: Blocked screen
+	else bouncer = SAFE
+		UI-->>C: Story + explanation
+		UI-->>C: Deep content merged later
+	end
+```
 
 ## Journey view
 
@@ -89,4 +115,5 @@ Data sources:
 1. Deep content failure in curious mode is non-fatal (story/explanation still available).
 2. Missing active child shows transition to parent portal.
 3. Parent sign-out returns app to login state.
+4. Bouncer UNSAFE response blocks before child content is shown.
 
