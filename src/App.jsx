@@ -21,6 +21,7 @@ import { hasSupabaseConfig, supabase } from "./lib/supabaseClient";
 import {
   awardChildBadge,
   createCheckoutSession,
+  getBillingStatus,
   getParentSecurity,
   listChildProfiles,
   logChildSearch,
@@ -68,6 +69,8 @@ export default function App() {
   const [familyReady, setFamilyReady] = useState(false);
   const [children, setChildren] = useState([]);
   const [activeChildId, setActiveChildId] = useState(null);
+  const [landingSubscriptionStatus, setLandingSubscriptionStatus] = useState(null);
+  const [landingSubscriptionLoading, setLandingSubscriptionLoading] = useState(false);
   const [showJourney, setShowJourney] = useState(false);
   const [parentPortalUnlocked, setParentPortalUnlocked] = useState(false);
   const [parentPinHash, setParentPinHash] = useState(null);
@@ -264,6 +267,37 @@ export default function App() {
   }, [session?.user?.id]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const loadLandingSubscription = async () => {
+      if (!session?.user?.id) {
+        setLandingSubscriptionStatus(null);
+        setLandingSubscriptionLoading(false);
+        return;
+      }
+
+      setLandingSubscriptionLoading(true);
+      try {
+        const status = await getBillingStatus();
+        if (cancelled) return;
+        setLandingSubscriptionStatus(status?.subscriptionStatus || null);
+      } catch {
+        if (cancelled) return;
+        setLandingSubscriptionStatus(null);
+      } finally {
+        if (!cancelled) {
+          setLandingSubscriptionLoading(false);
+        }
+      }
+    };
+
+    loadLandingSubscription();
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user?.id]);
+
+  useEffect(() => {
     if (session && familyReady && !activeChild && !isParentRoute && (isAppRoute || isCuriousRoute)) {
       navigateTo("/parent", { replace: true });
     }
@@ -386,6 +420,23 @@ export default function App() {
     }
   };
 
+  const startLandingUpgradeCheckout = async (pinInput) => {
+    const result = await verifyParentPin(pinInput);
+    if (!result?.ok) {
+      return result;
+    }
+
+    sessionStorage.setItem(BILLING_RETURN_USER_KEY, session.user.id);
+
+    try {
+      const { checkoutUrl } = await createCheckoutSession({ returnPath: "/parent" });
+      window.location.href = checkoutUrl;
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: error.message || "Could not start checkout." };
+    }
+  };
+
   const createParentPin = async (pinInput) => {
     const salt = createPinSalt();
     const pinHash = await hashPin(pinInput, salt);
@@ -432,7 +483,16 @@ export default function App() {
       />
     );
   } else if (isLandingRoute) {
-    staticRouteContent = <LandingPage />;
+    staticRouteContent = (
+      <LandingPage
+        isAuthenticated={Boolean(session?.user)}
+        subscriptionStatus={landingSubscriptionStatus}
+        subscriptionLoading={landingSubscriptionLoading}
+        onStartUpgradeCheckout={startLandingUpgradeCheckout}
+        onSignInForUpgrade={() => navigateTo("/app")}
+        onOpenParentPortal={() => navigateTo("/parent")}
+      />
+    );
   } else if (isPrivacyRoute) {
     staticRouteContent = (
       <LegalScreen
@@ -703,7 +763,16 @@ export default function App() {
   }
 
   if (!isCuriousRoute) {
-    return <LandingPage />;
+    return (
+      <LandingPage
+        isAuthenticated={Boolean(session?.user)}
+        subscriptionStatus={landingSubscriptionStatus}
+        subscriptionLoading={landingSubscriptionLoading}
+        onStartUpgradeCheckout={startLandingUpgradeCheckout}
+        onSignInForUpgrade={() => navigateTo("/app")}
+        onOpenParentPortal={() => navigateTo("/parent")}
+      />
+    );
   }
 
   return (
@@ -748,12 +817,98 @@ const PREVIEW_EXAMPLES = [
   },
 ];
 
-function LandingPage() {
+function LandingPage({
+  isAuthenticated,
+  subscriptionStatus,
+  subscriptionLoading,
+  onStartUpgradeCheckout,
+  onSignInForUpgrade,
+  onOpenParentPortal,
+}) {
   const [showSafetyModal, setShowSafetyModal] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(0);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradePin, setUpgradePin] = useState("");
+  const [upgradeError, setUpgradeError] = useState("");
+  const [upgradeLoading, setUpgradeLoading] = useState(false);
+  const [upgradeLockedUntil, setUpgradeLockedUntil] = useState(0);
+  const [upgradeNowTs, setUpgradeNowTs] = useState(Date.now());
+  const isAlreadySubscribed =
+    subscriptionStatus === "active" || subscriptionStatus === "past_due";
 
   const handleTryNow = () => {
     window.location.href = "/app";
+  };
+
+  useEffect(() => {
+    if (!upgradeLockedUntil) return;
+    const timer = window.setInterval(() => {
+      setUpgradeNowTs(Date.now());
+    }, 250);
+    return () => window.clearInterval(timer);
+  }, [upgradeLockedUntil]);
+
+  const upgradeLockedSeconds = Math.max(
+    0,
+    Math.ceil((upgradeLockedUntil - upgradeNowTs) / 1000)
+  );
+  const upgradeIsLocked = upgradeLockedSeconds > 0;
+
+  const openUpgradeModal = () => {
+    setUpgradeError("");
+    setUpgradePin("");
+    setUpgradeNowTs(Date.now());
+    setShowUpgradeModal(true);
+  };
+
+  const closeUpgradeModal = () => {
+    if (upgradeLoading) return;
+    setShowUpgradeModal(false);
+    setUpgradeError("");
+    setUpgradePin("");
+    setUpgradeNowTs(Date.now());
+  };
+
+  const handleUnlockUnlimited = () => {
+    if (isAlreadySubscribed) {
+      onOpenParentPortal?.();
+      return;
+    }
+    if (!isAuthenticated) {
+      onSignInForUpgrade?.();
+      return;
+    }
+    openUpgradeModal();
+  };
+
+  const handleUpgradeCheckout = async () => {
+    if (upgradeIsLocked || upgradeLoading) {
+      return;
+    }
+    if (!upgradePin.trim()) {
+      setUpgradeError("Enter your parent PIN to continue.");
+      return;
+    }
+
+    setUpgradeLoading(true);
+    setUpgradeError("");
+
+    try {
+      const result = await onStartUpgradeCheckout?.(upgradePin.trim());
+      if (!result?.ok) {
+        setUpgradeError(result?.error || "Could not verify PIN.");
+        if (result?.lockedUntil) {
+          setUpgradeLockedUntil(result.lockedUntil);
+          setUpgradeNowTs(Date.now());
+        }
+        return;
+      }
+      setShowUpgradeModal(false);
+    } catch (error) {
+      setUpgradeError(error?.message || "Could not start checkout.");
+    } finally {
+      setUpgradeLoading(false);
+    }
   };
 
   const goTo = (i) => setPreviewIndex((i + PREVIEW_EXAMPLES.length) % PREVIEW_EXAMPLES.length);
@@ -889,10 +1044,16 @@ function LandingPage() {
           </div>
           <div className="flex justify-center">
             <button
-              onClick={handleTryNow}
+              onClick={handleUnlockUnlimited}
               className="inline-flex items-center justify-center rounded-2xl bg-purple-600 hover:bg-purple-700 text-white text-base sm:text-lg font-bold px-6 py-3 transition-transform active:scale-95"
             >
-              Unlock unlimited curiosity
+              {subscriptionLoading && isAuthenticated
+                ? "Checking subscription..."
+                : isAlreadySubscribed
+                  ? "You have already subscribed"
+                  : isAuthenticated
+                    ? "Unlock unlimited curiosity"
+                    : "Sign in to unlock unlimited curiosity"}
             </button>
           </div>
         </section>
@@ -928,6 +1089,76 @@ function LandingPage() {
               <li>Parent controls and child profiles keep family access separated.</li>
               <li>No ads and no distraction-heavy feed design.</li>
             </ul>
+          </div>
+        </div>
+      )}
+
+      {showUpgradeModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center px-4">
+          <div className="w-full max-w-md rounded-3xl border border-purple-100 bg-white shadow-xl p-6">
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-purple-500 mb-2">Parent Checkout</p>
+                <h3 className="text-2xl font-black text-gray-800">Unlock unlimited curiosity</h3>
+              </div>
+              <button
+                onClick={closeUpgradeModal}
+                disabled={upgradeLoading}
+                className="text-sm font-bold text-slate-500 hover:text-slate-700 disabled:text-slate-300"
+                aria-label="Close upgrade modal"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 mb-4">
+              <p className="text-sm font-semibold text-emerald-800">Unlimited questions for all your kids</p>
+              <p className="text-xs text-emerald-700 mt-1">$6.99/month. Enter your parent PIN to continue to secure checkout.</p>
+            </div>
+
+            <input
+              type="password"
+              value={upgradePin}
+              onChange={(e) => setUpgradePin(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleUpgradeCheckout();
+              }}
+              inputMode="numeric"
+              maxLength={8}
+              autoFocus
+              disabled={upgradeLoading || upgradeIsLocked}
+              className="w-full rounded-2xl border-2 border-gray-200 focus:border-purple-400 px-4 py-3 outline-none mb-3"
+              placeholder="Enter parent PIN"
+            />
+
+            {upgradeIsLocked ? (
+              <p className="text-sm font-semibold text-amber-700 mb-3">
+                Too many attempts. Try again in {upgradeLockedSeconds}s.
+              </p>
+            ) : null}
+
+            {upgradeError ? (
+              <p className="text-sm text-red-600 font-semibold mb-3">{upgradeError}</p>
+            ) : null}
+
+            <button
+              onClick={handleUpgradeCheckout}
+              disabled={!upgradePin.trim() || upgradeLoading || upgradeIsLocked}
+              className="w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 text-white font-bold py-3 transition-all active:scale-95"
+            >
+              {upgradeLoading ? "Opening checkout..." : upgradeIsLocked ? "Locked" : "Continue to secure checkout"}
+            </button>
+
+            <button
+              onClick={() => {
+                closeUpgradeModal();
+                onOpenParentPortal?.();
+              }}
+              disabled={upgradeLoading}
+              className="w-full mt-3 rounded-2xl bg-white border border-gray-200 hover:border-gray-300 disabled:border-gray-100 disabled:text-gray-400 text-gray-600 font-semibold py-3 transition-colors"
+            >
+              Open parent portal instead
+            </button>
           </div>
         </div>
       )}
