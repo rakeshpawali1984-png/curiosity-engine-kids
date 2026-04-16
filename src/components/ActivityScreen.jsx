@@ -1,10 +1,10 @@
 import ProgressBar from "./ProgressBar";
 
-export default function ActivityScreen({ topic, onNext, onHome }) {
+export default function ActivityScreen({ topic, onNext, onHome, homeLabel = "Home" }) {
   return (
     <div>
       <button onClick={onHome} className="mb-4 flex items-center gap-1 text-gray-400 hover:text-purple-600 font-semibold text-base transition-colors">
-        ← Home
+        ← {homeLabel}
       </button>
       <ProgressBar step={3} />
 

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import ProgressBar from "./ProgressBar";
 
-export default function QuizScreen({ topic, onComplete, onHome }) {
+export default function QuizScreen({ topic, onComplete, onHome, homeLabel = "Home" }) {
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState(null);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -50,7 +50,7 @@ export default function QuizScreen({ topic, onComplete, onHome }) {
   return (
     <div>
       <button onClick={onHome} className="mb-4 flex items-center gap-1 text-gray-400 hover:text-purple-600 font-semibold text-base transition-colors">
-        ← Home
+        ← {homeLabel}
       </button>
       <ProgressBar step={4} />
 

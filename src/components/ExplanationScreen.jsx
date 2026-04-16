@@ -1,13 +1,13 @@
 import ProgressBar from "./ProgressBar";
 
-export default function ExplanationScreen({ topic, onNext, onHome }) {
+export default function ExplanationScreen({ topic, onNext, onHome, homeLabel = "Home" }) {
   // Split explanation text into paragraphs
   const paragraphs = topic.explanation.split("\n").filter(Boolean);
 
   return (
     <div>
       <button onClick={onHome} className="mb-4 flex items-center gap-1 text-gray-400 hover:text-purple-600 font-semibold text-base transition-colors">
-        ← Home
+        ← {homeLabel}
       </button>
       <ProgressBar step={2} />
 

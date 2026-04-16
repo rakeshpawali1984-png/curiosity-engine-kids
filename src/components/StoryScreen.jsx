@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import ProgressBar from "./ProgressBar";
 
-export default function StoryScreen({ topic, onNext, onHome }) {
+export default function StoryScreen({ topic, onNext, onHome, homeLabel = "Home" }) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -13,7 +13,7 @@ export default function StoryScreen({ topic, onNext, onHome }) {
   return (
     <div className={`transition-opacity duration-300 ${visible ? "opacity-100" : "opacity-0"}`}>
       <button onClick={onHome} className="mb-4 flex items-center gap-1 text-gray-400 hover:text-purple-600 font-semibold text-base transition-colors">
-        ← Home
+        ← {homeLabel}
       </button>
       <ProgressBar step={1} />
 

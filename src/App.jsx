@@ -1312,7 +1312,7 @@ function MainApp({
           />
         )}
 
-        {demoMode && (
+        {demoMode && screen === "home" && (
           <div className="bg-white/85 backdrop-blur rounded-2xl border border-purple-100 px-3 py-2 mb-4 flex items-center justify-between gap-3">
             <button
               onClick={() => {
@@ -1373,6 +1373,7 @@ function MainApp({
               topic={currentTopic}
               onNext={() => setScreen("explanation")}
               onHome={goHome}
+              homeLabel={demoMode ? "Back to topics" : "Home"}
             />
           )}
 
@@ -1381,6 +1382,7 @@ function MainApp({
               topic={currentTopic}
               onNext={() => setScreen("activity")}
               onHome={goHome}
+              homeLabel={demoMode ? "Back to topics" : "Home"}
             />
           )}
 
@@ -1389,6 +1391,7 @@ function MainApp({
               topic={currentTopic}
               onNext={() => setScreen("quiz")}
               onHome={goHome}
+              homeLabel={demoMode ? "Back to topics" : "Home"}
             />
           )}
 
@@ -1397,6 +1400,7 @@ function MainApp({
               key={currentTopic.id}
               topic={currentTopic}
               onHome={goHome}
+              homeLabel={demoMode ? "Back to topics" : "Home"}
               onComplete={handleQuizComplete}
             />
           )}
