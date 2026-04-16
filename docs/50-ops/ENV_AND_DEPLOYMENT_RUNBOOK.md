@@ -1,7 +1,7 @@
 # Environment and Deployment Runbook
 
 - Owner: TBD
-- Last updated: 2026-04-13
+- Last updated: 2026-04-16
 - Status: active
 - Related docs:
 	[../SUPABASE_ENVIRONMENTS.md](../SUPABASE_ENVIRONMENTS.md),
@@ -64,6 +64,22 @@ Known project refs from current setup:
 12. PROMPT_VERSION_DEEP
 13. PROMPT_VERSION_BOUNCER
 
+### Stripe billing keys
+
+1. STRIPE_SECRET_KEY (use a restricted key in prod — scopes: Checkout Sessions Write, Customers Write, Customer portal Write)
+2. STRIPE_WEBHOOK_SECRET (signing secret from Stripe dashboard webhook endpoint — live mode)
+3. STRIPE_PRICE_MONTHLY_699 (must be a `price_...` ID from live mode, NOT a `prod_...` product ID)
+4. APP_BASE_URL (controls checkout success/cancel redirect — set to `https://whyroo.com` in prod)
+
+Webhook URL: `https://whyroo.com/api/billing/webhook`
+
+Events to subscribe in Stripe dashboard:
+- checkout.session.completed
+- customer.subscription.created
+- customer.subscription.updated
+- customer.subscription.deleted
+- invoice.payment_failed
+
 ### API hardening controls
 
 1. API_AUTH_ENABLED
@@ -118,6 +134,21 @@ Branch-specific preview note:
 
 1. If Vercel prompts for a branch scope, set the branch explicitly for targeted rollout.
 2. For /api/spark model policy, ensure `OPENAI_SERVER_MODEL` is set and included in `OPENAI_ALLOWED_MODELS`.
+
+## Stripe billing runbook
+
+### New subscription troubleshooting
+
+1. If checkout returns 500: check Stripe dashboard → Developers → Logs → POST /v1/checkout/sessions for exact error.
+2. Common error: `resource_missing` on `customer` param — stale customer ID in DB. Run: `update public.parents set stripe_customer_id = null where stripe_customer_id = '<stale_id>';` — checkout handler will auto-recreate.
+3. Common error: `No such price` — `STRIPE_PRICE_MONTHLY_699` is set to a `prod_...` product ID instead of a `price_...` price ID.
+4. Period-end date missing after checkout — deploy must be on `cbf278e` or later; older deploys stored `null` on checkout.session.completed.
+
+### Webhook verification
+
+1. Stripe dashboard → Developers → Webhooks → click endpoint → Recent deliveries.
+2. All 5 subscribed events should show green (200) responses.
+3. If a delivery failed, use "Resend" to replay it — idempotent handlers will safely re-process.
 
 ## Incident handling quick notes
 
