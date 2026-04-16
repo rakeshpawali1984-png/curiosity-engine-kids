@@ -157,6 +157,43 @@ const UNSAFE_INPUT_RULES = [
     pattern: /\b(get revenge|take revenge|pay them back physically)\b/,
     reason: 'Revenge or violence requests are not allowed.',
   },
+  // Jailbreak / prompt-injection patterns
+  {
+    pattern: /ignore\s+(all\s+)?(previous|prior|above|your)\s+(instructions?|rules?|guidelines?|constraints?)/i,
+    reason: 'Attempts to override safety instructions are not allowed.',
+  },
+  {
+    pattern: /\b(pretend|imagine|act|behave|respond)\s+(you\s+are|you're|to\s+be|as\s+if\s+you\s+(are|have\s+no))/i,
+    reason: 'Persona-switching requests are not allowed.',
+  },
+  {
+    pattern: /\byou\s+are\s+now\s+(a|an|the)\b/i,
+    reason: 'Persona-switching requests are not allowed.',
+  },
+  {
+    pattern: /\b(disregard|forget|override|bypass|disable|remove)\s+(your\s+)?(rules?|guidelines?|instructions?|safety|restrictions?|constraints?)/i,
+    reason: 'Attempts to override safety instructions are not allowed.',
+  },
+  {
+    pattern: /\b(jailbreak|dan\s+mode|developer\s+mode|unrestricted\s+mode|god\s+mode)\b/i,
+    reason: 'Jailbreak attempts are not allowed.',
+  },
+  {
+    pattern: /\b(roleplay|role-play|role\s+play)\s+(as|being|a|an)\b/i,
+    reason: 'Roleplay persona requests are not allowed.',
+  },
+  {
+    pattern: /\b(hypothetically|theoretically|in\s+a\s+story|in\s+fiction|for\s+a\s+story|as\s+a\s+thought\s+experiment)\b[^.\n]{0,60}\b(harm|hurt|kill|weapon|bomb|poison|drug|hack|exploit)/i,
+    reason: 'Fictional framing of harmful requests is not allowed.',
+  },
+  {
+    pattern: /(repeat|output|print|show|reveal|tell\s+me)\s+(everything|all|the\s+text)?\s*(above|before|in\s+your\s+system\s+prompt|your\s+instructions?)/i,
+    reason: 'Attempts to extract system instructions are not allowed.',
+  },
+  {
+    pattern: /\[\s*(system|inst|instruction|prompt)\s*[:\|]/i,
+    reason: 'Injected instruction markers are not allowed.',
+  },
 ];
 
 function validateUserContentSafety(userContent) {

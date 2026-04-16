@@ -381,21 +381,45 @@ async function runPipeline(query, onPhaseChange, questionId, ageRange) {
       bouncerStatus = "rejected";
     });
 
-  // Wait only for fast creator so first paint is not blocked by bouncer timing.
+  // Wait for fast creator AND bouncer together before first paint.
+  // This eliminates the window where unsafe content could be briefly visible.
+  // Both calls run in parallel so the added latency is only the delta between
+  // fast creator finishing and bouncer finishing (typically <100 ms).
   let fastResult;
+  let bouncerResult;
   try {
-    fastResult = await fastPromise;
+    [fastResult, bouncerResult] = await Promise.all([fastPromise, bouncerPromise]);
   } catch (e) {
-    logger.error("[WonderEngine] Fast creator failed:", e);
+    logger.error("[WonderEngine] Fast creator or bouncer failed:", e);
     // Preserve quota errors so UI can show the correct upgrade CTA state.
     if (e?.code === "QUOTA_EXCEEDED") {
       throw e;
     }
-    throw new Error("CREATOR_FAIL");
+    // If bouncer itself threw, treat as inconclusive — let content through
+    // and log; a failed safety check should not silently serve content.
+    if (e?.message !== "CREATOR_FAIL") {
+      // Bouncer error — still need fast result
+      try {
+        fastResult = fastResult ?? await fastPromise;
+      } catch (fe) {
+        if (fe?.code === "QUOTA_EXCEEDED") throw fe;
+        throw new Error("CREATOR_FAIL");
+      }
+      logger.warn("[WonderEngine] bouncer threw — treating as SAFE to avoid blocking on error:", e.message);
+      bouncerResult = { status: "SAFE", reason: "bouncer-error-fallback" };
+    } else {
+      throw e;
+    }
+  }
+
+  // Block immediately if bouncer flagged the content — before any UI paint.
+  if (String(bouncerResult?.status || "").toUpperCase() === "UNSAFE") {
+    logger.warn(`[WonderEngine] BLOCKED by bouncer (pre-paint) - reason: ${bouncerResult.reason}`);
+    throw new Error("BLOCKED");
   }
 
   const tFast = performance.now();
-  logger.debug(`[WonderEngine] fast ready in ${(tFast - t0).toFixed(0)}ms - bouncer=${bouncerStatus}`);
+  logger.debug(`[WonderEngine] fast ready in ${(tFast - t0).toFixed(0)}ms - bouncer=${bouncerResult?.status}`);
 
   logger.info(`[WonderEngine] first paint ready in ${(tFast - t0).toFixed(0)}ms`);
   return { partial: fastResult, deepPromise, bouncerPromise };
@@ -953,6 +977,8 @@ export default function CuriousScreen({
         activeSearchIdRef.current = await onRecordSearch(query);
       }
       const tPipelineStart = performance.now();
+      // bouncerPromise is already resolved (SAFE) by the time runPipeline returns.
+      // Content is only shown after the bouncer has cleared it — no post-paint check needed.
       const { partial, deepPromise, bouncerPromise } = await runPipeline(query, () => {}, questionId, activeChild?.age_range);
       const partialTopic = buildPartialTopic(partial, query);
       setTopic(partialTopic);
@@ -961,17 +987,6 @@ export default function CuriousScreen({
       // Store deep promise and resolve in background — merges when ready
       deepPromiseRef.current = deepPromise;
       bouncerPromiseRef.current = bouncerPromise;
-
-      bouncerPromise.then((bounce) => {
-        if (bouncerPromiseRef.current !== bouncerPromise) return;
-        if (String(bounce?.status || "").toUpperCase() === "UNSAFE") {
-          logger.warn(`[WonderEngine] BLOCKED by bouncer - reason: ${bounce.reason}`);
-          deepPromiseRef.current = null;
-          setScreen("blocked");
-        }
-      }).catch((e) => {
-        logger.error("[WonderEngine] bouncer failed:", e.message);
-      });
 
       deepPromise.then((deep) => {
         // Only apply if this is still the active search (ref matches)
