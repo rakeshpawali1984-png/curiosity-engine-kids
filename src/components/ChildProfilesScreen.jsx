@@ -216,7 +216,8 @@ export default function ChildProfilesScreen({
     refreshBillingStatus();
   }, []);
 
-  const isPaidPlan = billingStatus?.subscriptionStatus === "active";
+  const isPaidPlan = billingStatus?.subscriptionStatus === "active" || billingStatus?.subscriptionStatus === "past_due";
+  const isPastDue = billingStatus?.subscriptionStatus === "past_due";
   const usedToday = Number(billingStatus?.usedToday || 0);
   const dailyLimit = Number(billingStatus?.dailyLimit || 5);
   const billingFlowStatus = new URLSearchParams(window.location.search).get("billing");
@@ -583,19 +584,26 @@ export default function ChildProfilesScreen({
 
           <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
             <p className="text-sm text-emerald-800 font-semibold mb-2">
-              Plan: {isPaidPlan ? "Unlimited ($6.99/month)" : "Free"}
+              Plan: {isPastDue ? "Unlimited (payment required)" : isPaidPlan ? "Unlimited ($6.99/month)" : "Free"}
             </p>
             {!isPaidPlan && (
               <p className="text-sm text-emerald-700">
                 Usage today: {usedToday}/{dailyLimit} questions
               </p>
             )}
-            {isPaidPlan && billingStatus?.currentPeriodEnd && (
+            {isPaidPlan && !isPastDue && billingStatus?.currentPeriodEnd && (
               <p className="text-sm text-emerald-700">
                 Current period ends: {new Date(billingStatus.currentPeriodEnd).toLocaleDateString()}
               </p>
             )}
           </div>
+
+          {isPastDue && (
+            <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <p className="text-sm font-semibold text-amber-800">⚠️ Payment failed</p>
+              <p className="text-xs text-amber-700 mt-1">Update your payment method to keep unlimited access. Stripe will retry automatically.</p>
+            </div>
+          )}
 
           {billingError && (
             <p className="mt-3 text-sm text-red-600 font-semibold">{billingError}</p>
@@ -608,7 +616,7 @@ export default function ChildProfilesScreen({
                 disabled={billingActionLoading}
                 className="w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 text-white font-bold py-3 transition-all active:scale-95"
               >
-                {billingActionLoading ? "Opening..." : "Manage Billing"}
+                {billingActionLoading ? "Opening..." : isPastDue ? "Update Payment Method" : "Manage Billing"}
               </button>
             ) : (
               <button

@@ -19,6 +19,7 @@ const STRIPE_PRICE_MONTHLY_699 = getEnvVar('STRIPE_PRICE_MONTHLY_699');
 const APP_BASE_URL_RAW = getEnvVar('APP_BASE_URL');
 const VITE_AUTH_REDIRECT_URL = getEnvVar('VITE_AUTH_REDIRECT_URL');
 const VERCEL_URL = getEnvVar('VERCEL_URL');
+const ALLOWED_RETURN_PATHS = new Set(['/parent', '/app']);
 
 function normalizeOrigin(value) {
   const trimmed = String(value || '').trim();
@@ -51,6 +52,26 @@ function resolveBaseUrl(req) {
   }
 
   return fallbackOrigin;
+}
+
+function resolveReturnPath(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '/parent';
+  if (!raw.startsWith('/')) return '/parent';
+
+  try {
+    const url = new URL(raw, 'http://localhost');
+    if (!ALLOWED_RETURN_PATHS.has(url.pathname)) return '/parent';
+    return `${url.pathname}${url.search}`;
+  } catch {
+    return '/parent';
+  }
+}
+
+function buildReturnUrl(baseUrl, returnPath, billingStatus) {
+  const url = new URL(returnPath, baseUrl);
+  url.searchParams.set('billing', billingStatus);
+  return url.toString();
 }
 
 async function getOrCreateStripeCustomer(userId, email) {
@@ -118,6 +139,10 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  const requestBody = typeof req.body === 'string'
+    ? JSON.parse(req.body || '{}')
+    : (req.body || {});
+
   const stripe = getStripeClient();
   if (!stripe || !STRIPE_PRICE_MONTHLY_699) {
     return res.status(500).json({
@@ -142,6 +167,7 @@ export default async function handler(req, res) {
 
   try {
     const baseUrl = resolveBaseUrl(req);
+    const returnPath = resolveReturnPath(requestBody.returnPath);
     const customerId = await getOrCreateStripeCustomer(authResult.userId, authResult.email);
 
     const session = await stripe.checkout.sessions.create({
@@ -151,8 +177,8 @@ export default async function handler(req, res) {
         price: STRIPE_PRICE_MONTHLY_699,
         quantity: 1,
       }],
-      success_url: `${baseUrl}/parent?billing=success`,
-      cancel_url: `${baseUrl}/parent?billing=cancel`,
+      success_url: buildReturnUrl(baseUrl, returnPath, 'success'),
+      cancel_url: buildReturnUrl(baseUrl, returnPath, 'cancel'),
       allow_promotion_codes: true,
       metadata: {
         parent_user_id: authResult.userId,

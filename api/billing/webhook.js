@@ -171,12 +171,15 @@ export default async function handler(req, res) {
 
       case 'invoice.payment_failed': {
         const invoice = event.data.object;
+        // Keep plan_key as unlimited_monthly — Stripe retries for several days.
+        // Downgrading immediately would lock the user out during the retry window.
+        // If payment ultimately fails, customer.subscription.deleted fires and downgrades then.
         await updateParentSubscriptionByStripeCustomer({
           stripeCustomerId: invoice.customer,
           subscriptionId: invoice.subscription,
           status: 'past_due',
           periodEnd: null,
-          planKey: 'free',
+          planKey: 'unlimited_monthly',
         });
         clearPaidStatusCache();
         break;

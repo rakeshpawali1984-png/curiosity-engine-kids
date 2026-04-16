@@ -797,6 +797,9 @@ export default function CuriousScreen({
   onOpenJourney,
   onOpenParentPortal,
   onOpenSite,
+  onStartUpgradeCheckout,
+  billingFlowStatus,
+  onDismissBillingFlow,
   onRecordSearch,
   onAwardBadge,
 }) {
@@ -813,6 +816,12 @@ export default function CuriousScreen({
   const [billingStatus, setBillingStatus] = useState(null);
   const [billingLoading, setBillingLoading] = useState(false);
   const [showParentHint, setShowParentHint] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradePin, setUpgradePin] = useState("");
+  const [upgradeError, setUpgradeError] = useState("");
+  const [upgradeLoading, setUpgradeLoading] = useState(false);
+  const [upgradeLockedUntil, setUpgradeLockedUntil] = useState(0);
+  const [upgradeNowTs, setUpgradeNowTs] = useState(Date.now());
   const deepPromiseRef = useRef(null);
   const bouncerPromiseRef = useRef(null);
   const activeSearchIdRef = useRef(null);
@@ -847,6 +856,16 @@ export default function CuriousScreen({
     }
   }, []);
 
+  useEffect(() => {
+    if (upgradeLockedUntil <= Date.now()) return undefined;
+    const timer = window.setInterval(() => {
+      setUpgradeNowTs(Date.now());
+    }, 1000);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [upgradeLockedUntil]);
+
   const dismissParentHint = () => {
     setShowParentHint(false);
     try {
@@ -854,6 +873,37 @@ export default function CuriousScreen({
     } catch {
       // Ignore storage failures and just hide it for this render.
     }
+  };
+
+  const closeUpgradeModal = () => {
+    if (upgradeLoading) return;
+    setShowUpgradeModal(false);
+    setUpgradePin("");
+    setUpgradeError("");
+  };
+
+  const openUpgradeModal = () => {
+    setShowUpgradeModal(true);
+    setUpgradeError("");
+    setUpgradePin("");
+  };
+
+  const handleUpgradeCheckout = async () => {
+    if (!onStartUpgradeCheckout) return;
+    const pin = upgradePin.trim();
+    if (!pin) return;
+
+    setUpgradeLoading(true);
+    const result = await onStartUpgradeCheckout(pin);
+    if (!result?.ok) {
+      setUpgradeError(result?.error || "Could not start checkout.");
+      setUpgradeLockedUntil(result?.lockedUntil || 0);
+      setUpgradePin("");
+      setUpgradeLoading(false);
+      return;
+    }
+
+    setUpgradeLoading(false);
   };
 
   const goAsk = () => {
@@ -964,7 +1014,7 @@ export default function CuriousScreen({
     triggerSearch(question);
   };
 
-  const isPaidPlan = billingStatus?.subscriptionStatus === "active";
+  const isPaidPlan = billingStatus?.subscriptionStatus === "active" || billingStatus?.subscriptionStatus === "past_due";
   const isOverrideAccess = billingStatus?.accessSource === "override";
   const usedToday = Number(billingStatus?.usedToday || 0);
   const dailyLimit = Number(billingStatus?.dailyLimit || 5);
@@ -972,6 +1022,8 @@ export default function CuriousScreen({
   const isOutOfQuestions = !isPaidPlan && questionsLeftToday !== null && questionsLeftToday <= 0;
   const meterResetAt = billingStatus?.resetAt || quotaResetAt || "";
   const meterResetLabel = formatResetAtLocal(meterResetAt);
+  const upgradeLockedSeconds = Math.max(0, Math.ceil((upgradeLockedUntil - upgradeNowTs) / 1000));
+  const upgradeIsLocked = upgradeLockedSeconds > 0;
 
   // ── Story → Explanation → Activity → Quiz → Badge ─────────────────────────
   // These reuse the exact same screen components as the main app, wrapped in
@@ -1133,6 +1185,26 @@ export default function CuriousScreen({
           currentView="app"
         />
 
+        {(billingFlowStatus === "success" || billingFlowStatus === "cancel") && (
+          <div className={`mb-4 rounded-2xl border px-4 py-3 flex items-start justify-between gap-3 ${billingFlowStatus === "success" ? "border-green-200 bg-green-50" : "border-slate-200 bg-slate-50"}`}>
+            <div>
+              <p className={`text-sm font-semibold ${billingFlowStatus === "success" ? "text-green-700" : "text-slate-700"}`}>
+                {billingFlowStatus === "success" ? "Unlimited unlocked. You're ready to keep exploring." : "Checkout cancelled. You can try again any time."}
+              </p>
+              {billingFlowStatus === "success" && (
+                <p className="text-xs text-green-700 mt-1">Your billing status will refresh in a few seconds.</p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={onDismissBillingFlow}
+              className={`shrink-0 text-xs font-bold ${billingFlowStatus === "success" ? "text-green-600 hover:text-green-800" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {screen === "ask" && showParentHint && (
           <div className="mb-4 rounded-2xl border border-indigo-100 bg-indigo-50/90 px-4 py-3 flex items-start justify-between gap-3">
             <p className="text-sm text-indigo-700 font-semibold leading-snug">
@@ -1203,7 +1275,7 @@ export default function CuriousScreen({
             <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
               {billingLoading ? (
                 <p className="text-xs font-medium text-emerald-700">Checking questions left...</p>
-              ) : isOverrideAccess ? (
+              ) : isOverrideAccess || isPaidPlan ? (
                 <p className="text-xs font-medium text-emerald-700">Whyroo Unlimited is active.</p>
               ) : (
                 <div>
@@ -1212,7 +1284,7 @@ export default function CuriousScreen({
                       <span className="font-bold">{questionsLeftToday}/{dailyLimit}</span> questions left today
                     </p>
                     <button
-                      onClick={onOpenParentPortal}
+                      onClick={openUpgradeModal}
                       className="text-xs font-semibold text-emerald-800 underline underline-offset-2 hover:text-emerald-900 shrink-0"
                     >
                       Ask a grown-up
@@ -1301,7 +1373,7 @@ export default function CuriousScreen({
                   <p className="text-xs text-amber-700 mt-1">{meterResetLabel}</p>
                 </div>
                 <button
-                  onClick={onOpenParentPortal}
+                  onClick={openUpgradeModal}
                   className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-8 rounded-2xl transition-all"
                 >
                   Ask a grown-up
@@ -1324,6 +1396,74 @@ export default function CuriousScreen({
                 </button>
               </>
             )}
+          </div>
+        )}
+
+        {showUpgradeModal && (
+          <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center px-4">
+            <div className="w-full max-w-md rounded-3xl border border-purple-100 bg-white shadow-xl p-6">
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-widest text-purple-500 mb-2">Parent Checkout</p>
+                  <h3 className="text-2xl font-black text-gray-800">Unlock unlimited curiosity</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeUpgradeModal}
+                  disabled={upgradeLoading}
+                  className="text-sm font-bold text-slate-500 hover:text-slate-700 disabled:text-slate-300"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 mb-4">
+                <p className="text-sm font-semibold text-emerald-800">Unlimited questions for all your kids</p>
+                <p className="text-xs text-emerald-700 mt-1">$6.99/month. Enter your parent PIN to continue to secure checkout.</p>
+              </div>
+
+              {upgradeIsLocked && (
+                <p className="text-sm font-semibold text-amber-700 mb-3">
+                  Too many attempts. Try again in {upgradeLockedSeconds}s.
+                </p>
+              )}
+
+              <input
+                type="password"
+                inputMode="numeric"
+                autoComplete="off"
+                value={upgradePin}
+                onChange={(e) => setUpgradePin(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleUpgradeCheckout();
+                }}
+                disabled={upgradeLoading || upgradeIsLocked}
+                placeholder="Enter parent PIN"
+                className="w-full rounded-2xl border-2 border-gray-200 focus:border-purple-400 px-4 py-3 outline-none mb-3"
+              />
+
+              {upgradeError && (
+                <p className="text-sm text-red-600 font-semibold mb-3">{upgradeError}</p>
+              )}
+
+              <button
+                type="button"
+                onClick={handleUpgradeCheckout}
+                disabled={!upgradePin.trim() || upgradeLoading || upgradeIsLocked}
+                className="w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 text-white font-bold py-3 transition-all active:scale-95"
+              >
+                {upgradeLoading ? "Opening checkout..." : upgradeIsLocked ? "Locked" : "Continue to secure checkout"}
+              </button>
+
+              <button
+                type="button"
+                onClick={onOpenParentPortal}
+                disabled={upgradeLoading}
+                className="w-full mt-3 rounded-2xl bg-white border border-gray-200 hover:border-gray-300 disabled:border-gray-100 disabled:text-gray-400 text-gray-600 font-semibold py-3 transition-colors"
+              >
+                Open parent portal instead
+              </button>
+            </div>
           </div>
         )}
       </div>

@@ -228,12 +228,12 @@ export async function getBillingStatus() {
   return payload;
 }
 
-export async function createCheckoutSession() {
+export async function createCheckoutSession({ returnPath } = {}) {
   const headers = await getAuthHeaders();
   const response = await fetch("/api/billing/create-checkout-session", {
     method: "POST",
     headers,
-    body: JSON.stringify({}),
+    body: JSON.stringify({ returnPath }),
   });
 
   const payload = await response.json().catch(() => ({}));

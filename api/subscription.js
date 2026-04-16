@@ -22,7 +22,8 @@ function normalizeSubscriptionStatus(status) {
 
 function isPaidStatus(status) {
   const s = normalizeSubscriptionStatus(status);
-  return s === 'active';
+  // past_due retains access during Stripe's automatic retry window.
+  return s === 'active' || s === 'past_due';
 }
 
 function hasActiveFullOverride(override) {

@@ -20,6 +20,7 @@ const JourneyScreen = lazy(() => import("./components/JourneyScreen"));
 import { hasSupabaseConfig, supabase } from "./lib/supabaseClient";
 import {
   awardChildBadge,
+  createCheckoutSession,
   getParentSecurity,
   listChildProfiles,
   logChildSearch,
@@ -100,6 +101,14 @@ export default function App() {
       window.history.pushState({}, "", nextPath);
     }
     syncRouteState();
+  };
+
+  const clearBillingSearchParam = () => {
+    const params = new URLSearchParams(search);
+    params.delete("billing");
+    const nextSearch = params.toString();
+    const nextPath = nextSearch ? `${path}?${nextSearch}` : path;
+    navigateTo(nextPath, { replace: true });
   };
 
   useEffect(() => {
@@ -358,6 +367,23 @@ export default function App() {
     setParentPinLockedUntil(0);
     clearPinGuard(userId);
     return { ok: true };
+  };
+
+  const startChildUpgradeCheckout = async (pinInput) => {
+    const result = await verifyParentPin(pinInput);
+    if (!result?.ok) {
+      return result;
+    }
+
+    sessionStorage.setItem(BILLING_RETURN_USER_KEY, session.user.id);
+
+    try {
+      const { checkoutUrl } = await createCheckoutSession({ returnPath: "/app" });
+      window.location.href = checkoutUrl;
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: error.message || "Could not start checkout." };
+    }
   };
 
   const createParentPin = async (pinInput) => {
@@ -664,6 +690,9 @@ export default function App() {
           onOpenJourney={() => setShowJourney(true)}
           onOpenParentPortal={openParentPortal}
           onOpenSite={() => navigateTo("/")}
+          onStartUpgradeCheckout={startChildUpgradeCheckout}
+          billingFlowStatus={billingStatus}
+          onDismissBillingFlow={clearBillingSearchParam}
           onRecordSearch={(query) => handleTrackSearch(query, "curious")}
           onAwardBadge={(badgeTitle, sourceSearchId) =>
             handleTrackBadge(badgeTitle, sourceSearchId)
