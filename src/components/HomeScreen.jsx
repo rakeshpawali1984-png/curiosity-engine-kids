@@ -4,12 +4,26 @@ const CARD_STYLES = [
   "bg-violet-50 hover:bg-violet-100 border-violet-200 hover:border-violet-300",
 ];
 
-export default function HomeScreen({ topics, onSelect }) {
+export default function HomeScreen({ topics, onSelect, onBrandClick }) {
   return (
     <div className="flex flex-col items-center">
       <div className="text-center mb-6 mt-4">
-        <p className="text-4xl font-black text-purple-700 mb-1 tracking-tight">Whyroo</p>
-        <p className="text-sm font-extrabold uppercase tracking-[0.2em] text-purple-500">From why to wow</p>
+        {onBrandClick ? (
+          <button
+            type="button"
+            onClick={onBrandClick}
+            className="group"
+            aria-label="Go to Whyroo home"
+          >
+            <p className="text-4xl font-black text-purple-700 mb-1 tracking-tight group-hover:text-purple-800">Whyroo</p>
+            <p className="text-sm font-extrabold uppercase tracking-[0.2em] text-purple-500 group-hover:text-purple-600">From why to wow</p>
+          </button>
+        ) : (
+          <>
+            <p className="text-4xl font-black text-purple-700 mb-1 tracking-tight">Whyroo</p>
+            <p className="text-sm font-extrabold uppercase tracking-[0.2em] text-purple-500">From why to wow</p>
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-4 w-full">

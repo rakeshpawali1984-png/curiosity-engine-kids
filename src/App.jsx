@@ -1341,6 +1341,7 @@ function MainApp({
               pack={pack}
               onPackChange={setPack}
               onSelect={selectTopic}
+              onBrandClick={demoMode ? () => onAskGrownUp?.() : undefined}
             />
           )}
 
