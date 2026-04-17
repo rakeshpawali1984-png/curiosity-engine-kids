@@ -35,12 +35,20 @@ Return ONLY this JSON (nothing else):
 {
   "title": "A short kid-friendly title as a question or statement",
   "emoji": "A single relevant emoji",
-  "story": "A fun 3-4 sentence story about a child character discovering this topic",
-  "explanation": "A clear 3-5 sentence explanation using an analogy a child would understand",
+  "story": "A vivid 4-5 sentence mini-story with a child character discovering this topic",
+  "explanation": "A clear 4-6 sentence explanation using one strong kid-friendly analogy and one real-world example",
   "keyLesson": "One short sentence - the single most important idea",
   "wow": "One amazing surprising fact about this topic",
   "badge": "Badge name + relevant emoji"
 }
+
+QUALITY REQUIREMENTS (creator_fast):
+- Keep language warm, playful, and age-appropriate.
+- Story should include: hook, child action, simple "why" moment, then a learning reveal.
+- Use concrete imagery (objects, places, actions), not abstract wording.
+- Explanation should include: one cause-and-effect line, one familiar analogy, and one real-world observation.
+- Keep short sentences and natural reading rhythm.
+- Never include scary, harmful, medical-treatment, or adult framing.
 
 FEW-SHOT EXAMPLE (topic: "gravity"):
 {
