@@ -219,7 +219,7 @@ export default function ChildProfilesScreen({
   const isPaidPlan = billingStatus?.subscriptionStatus === "active" || billingStatus?.subscriptionStatus === "past_due";
   const isPastDue = billingStatus?.subscriptionStatus === "past_due";
   const usedToday = Number(billingStatus?.usedToday || 0);
-  const dailyLimit = Number(billingStatus?.dailyLimit || 5);
+  const dailyLimit = Number(billingStatus?.dailyLimit || 10);
   const billingFlowStatus = new URLSearchParams(window.location.search).get("billing");
   const formattedCurrentPeriodEnd = billingStatus?.currentPeriodEnd
     ? new Date(billingStatus.currentPeriodEnd).toLocaleDateString()
@@ -580,7 +580,7 @@ export default function ChildProfilesScreen({
                   ? formattedCurrentPeriodEnd
                     ? `Unlimited access is available through ${formattedCurrentPeriodEnd}`
                     : "Whyroo Unlimited is active"
-                  : "Free plan: 5 questions per day"}
+                  : "Free plan: 10 curious questions per day"}
               </p>
             </div>
             <button

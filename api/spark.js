@@ -23,7 +23,7 @@ const OPENAI_ALLOWED_MODELS = String(process.env.OPENAI_ALLOWED_MODELS || 'gpt-4
   .map((m) => m.trim())
   .filter(Boolean);
 const OPENAI_SERVER_MODEL = String(process.env.OPENAI_SERVER_MODEL || OPENAI_ALLOWED_MODELS[0] || 'gpt-4.1-mini').trim();
-const FREE_DAILY_QUESTION_LIMIT = Number(process.env.FREE_DAILY_QUESTION_LIMIT || '5');
+const FREE_DAILY_QUESTION_LIMIT = Number(process.env.FREE_DAILY_QUESTION_LIMIT || '10');
 
 const rateLimitStore = globalThis.__sparkRateLimitStore || new Map();
 globalThis.__sparkRateLimitStore = rateLimitStore;

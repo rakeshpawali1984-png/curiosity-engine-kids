@@ -185,7 +185,7 @@ export async function enforceDailyQuestionQuota({
     return { allowed: false, status: 400, code: 'INVALID_QUESTION_ID', error: 'Invalid request payload' };
   }
 
-  const safeLimit = Number.isInteger(dailyLimit) && dailyLimit > 0 ? dailyLimit : 5;
+  const safeLimit = Number.isInteger(dailyLimit) && dailyLimit > 0 ? dailyLimit : 10;
   const usageDate = todayUtcDateString();
   const cachedPaid = getCachedPaidStatus(userId);
   if (cachedPaid) {

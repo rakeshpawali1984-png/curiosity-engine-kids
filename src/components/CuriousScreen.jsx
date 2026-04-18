@@ -1032,7 +1032,7 @@ export default function CuriousScreen({
   const isPaidPlan = billingStatus?.subscriptionStatus === "active" || billingStatus?.subscriptionStatus === "past_due";
   const isOverrideAccess = billingStatus?.accessSource === "override";
   const usedToday = Number(billingStatus?.usedToday || 0);
-  const dailyLimit = Number(billingStatus?.dailyLimit || 5);
+  const dailyLimit = Number(billingStatus?.dailyLimit || 10);
   const questionsLeftToday = isPaidPlan ? null : Math.max(0, dailyLimit - usedToday);
   const isOutOfQuestions = !isPaidPlan && questionsLeftToday !== null && questionsLeftToday <= 0;
   const meterResetAt = billingStatus?.resetAt || quotaResetAt || "";
@@ -1295,7 +1295,7 @@ export default function CuriousScreen({
                   <div>
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-xs text-emerald-800">
-                        <span className="font-bold">{questionsLeftToday}/{dailyLimit}</span> questions left today
+                        <span className="font-bold">{questionsLeftToday} of {dailyLimit}</span> questions left today. You're doing great, keep going.
                       </p>
                       <button
                         onClick={openUpgradeModal}
