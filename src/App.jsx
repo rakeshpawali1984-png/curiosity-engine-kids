@@ -1211,6 +1211,19 @@ function LegalScreen({ title, updated, intro, sections }) {
   );
 }
 
+const DEMO_ASK_MAX_CHARS = 120;
+const DEMO_ASK_SESSION_KEY = "whyroo_demo_ask_session";
+const DEMO_ASK_USED_KEY = "whyroo_demo_ask_used";
+
+function getDemoSessionId() {
+  if (typeof window === "undefined") return "";
+  const existing = window.localStorage.getItem(DEMO_ASK_SESSION_KEY);
+  if (existing) return existing;
+  const created = `demo_${Math.random().toString(36).slice(2)}_${Date.now().toString(36)}`;
+  window.localStorage.setItem(DEMO_ASK_SESSION_KEY, created);
+  return created;
+}
+
 function MainApp({
   activeChild,
   onOpenJourney,
@@ -1232,6 +1245,10 @@ function MainApp({
   const [currentSearchId, setCurrentSearchId] = useState(null);
   const [quizResult, setQuizResult] = useState(null);
   const [demoLoadingMessage, setDemoLoadingMessage] = useState(DEMO_LOADING_MESSAGES[0]);
+  const [demoAskQuestion, setDemoAskQuestion] = useState("");
+  const [demoAskLoading, setDemoAskLoading] = useState(false);
+  const [demoAskError, setDemoAskError] = useState("");
+  const [demoAskUsed, setDemoAskUsed] = useState(false);
   const demoLoadingTimerRef = useRef(null);
 
   const activePack = pack === "original" ? topics : topicsSpark;
@@ -1254,28 +1271,40 @@ function MainApp({
     };
   }, []);
 
+  useEffect(() => {
+    if (!demoMode || typeof window === "undefined") return;
+    setDemoAskUsed(window.localStorage.getItem(DEMO_ASK_USED_KEY) === "true");
+  }, [demoMode]);
+
+  const startDemoFlowForTopic = (topic) => {
+    clearDemoLoadingTimer();
+    setCurrentTopic(topic);
+    setQuizResult(null);
+    setDemoLoadingMessage(DEMO_LOADING_MESSAGES[0]);
+    setScreen("loading");
+
+    let stepIndex = 0;
+    const runNextStep = () => {
+      stepIndex += 1;
+      if (stepIndex >= DEMO_LOADING_MESSAGES.length) {
+        setScreen("story");
+        return;
+      }
+
+      setDemoLoadingMessage(DEMO_LOADING_MESSAGES[stepIndex]);
+      demoLoadingTimerRef.current = window.setTimeout(runNextStep, 650);
+    };
+
+    demoLoadingTimerRef.current = window.setTimeout(runNextStep, 700);
+  };
+
   const selectTopic = async (topic) => {
     clearDemoLoadingTimer();
     setCurrentTopic(topic);
     setQuizResult(null);
 
     if (demoMode) {
-      setDemoLoadingMessage(DEMO_LOADING_MESSAGES[0]);
-      setScreen("loading");
-
-      let stepIndex = 0;
-      const runNextStep = () => {
-        stepIndex += 1;
-        if (stepIndex >= DEMO_LOADING_MESSAGES.length) {
-          setScreen("story");
-          return;
-        }
-
-        setDemoLoadingMessage(DEMO_LOADING_MESSAGES[stepIndex]);
-        demoLoadingTimerRef.current = window.setTimeout(runNextStep, 650);
-      };
-
-      demoLoadingTimerRef.current = window.setTimeout(runNextStep, 700);
+      startDemoFlowForTopic(topic);
       return;
     }
 
@@ -1290,6 +1319,66 @@ function MainApp({
     setCurrentTopic(null);
     setCurrentSearchId(null);
     setQuizResult(null);
+  };
+
+  const handleDemoAsk = async () => {
+    const trimmed = demoAskQuestion.trim();
+    if (demoAskLoading) return;
+    if (!trimmed || trimmed.length > DEMO_ASK_MAX_CHARS) {
+      setDemoAskError("Ask a short question (up to 120 characters).");
+      return;
+    }
+
+    setDemoAskLoading(true);
+    setDemoAskError("");
+    clearDemoLoadingTimer();
+    setDemoLoadingMessage(DEMO_LOADING_MESSAGES[0]);
+    setScreen("loading");
+
+    try {
+      const response = await fetch("/api/demo-ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: trimmed,
+          sessionId: getDemoSessionId(),
+        }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (response.status === 429) {
+          setDemoAskError(payload?.error || "Too many demo asks right now. Please try again shortly.");
+          setDemoAskUsed(true);
+          if (typeof window !== "undefined") {
+            window.localStorage.setItem(DEMO_ASK_USED_KEY, "true");
+          }
+          setScreen("home");
+          return;
+        }
+        setDemoAskError(payload?.error || "Could not create this demo question right now.");
+        setScreen("home");
+        return;
+      }
+
+      if (!payload?.topic) {
+        setDemoAskError("Could not create this demo question right now.");
+        setScreen("home");
+        return;
+      }
+
+      setDemoAskUsed(true);
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(DEMO_ASK_USED_KEY, "true");
+      }
+      setDemoAskQuestion("");
+      startDemoFlowForTopic(payload.topic);
+    } catch {
+      setDemoAskError("Could not create this demo question right now.");
+      setScreen("home");
+    } finally {
+      setDemoAskLoading(false);
+    }
   };
 
   const buildMasteryBadgeTitle = (topic) => `${topic?.title || "Adventure"} Mastery ⭐`;
@@ -1346,6 +1435,13 @@ function MainApp({
               demoMode={demoMode}
               onAskGrownUp={onAskGrownUp}
               onUnlockAskAnything={onUnlockAskAnything}
+              demoAskQuestion={demoAskQuestion}
+              onDemoAskQuestionChange={setDemoAskQuestion}
+              onDemoAsk={handleDemoAsk}
+              demoAskLoading={demoAskLoading}
+              demoAskError={demoAskError}
+              demoAskUsed={demoAskUsed}
+              demoAskMaxChars={DEMO_ASK_MAX_CHARS}
             />
           )}
 
@@ -1414,8 +1510,8 @@ function MainApp({
             <BadgeScreen
               topic={currentTopic}
               quizResult={quizResult}
-              onHome={demoMode ? (onAskGrownUp || goHome) : goHome}
-              ctaLabel={demoMode ? "Want to ask your own question? Ask a grown-up to sign in" : "Try another adventure ✨"}
+              onHome={goHome}
+              ctaLabel={demoMode ? "Back to demo mode" : "Try another adventure ✨"}
             />
           )}
         </div>

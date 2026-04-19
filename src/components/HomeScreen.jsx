@@ -4,7 +4,21 @@ const CARD_STYLES = [
   "bg-violet-50 hover:bg-violet-100 border-violet-200 hover:border-violet-300",
 ];
 
-export default function HomeScreen({ topics, onSelect, onBrandClick, demoMode = false, onAskGrownUp, onUnlockAskAnything }) {
+export default function HomeScreen({
+  topics,
+  onSelect,
+  onBrandClick,
+  demoMode = false,
+  onAskGrownUp,
+  onUnlockAskAnything,
+  demoAskQuestion = "",
+  onDemoAskQuestionChange,
+  onDemoAsk,
+  demoAskLoading = false,
+  demoAskError = "",
+  demoAskUsed = false,
+  demoAskMaxChars = 120,
+}) {
   return (
     <div className="flex flex-col items-center">
       <div className="text-center mb-6 mt-4">
@@ -27,34 +41,67 @@ export default function HomeScreen({ topics, onSelect, onBrandClick, demoMode = 
       </div>
 
       {demoMode && (
-        <div className="w-full mt-1 mb-3 rounded-2xl border border-purple-200 bg-white/80 p-4">
+        <div className="w-full mt-1 mb-3 bg-white rounded-3xl shadow-lg p-5 border-2 border-purple-100">
           <label className="block text-xs font-bold uppercase tracking-wider text-purple-500 mb-2">
             Ask anything
           </label>
-          <input
-            type="text"
-            disabled
-            value=""
-            placeholder="Ask anything..."
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-400 cursor-not-allowed"
-            aria-label="Ask anything teaser"
+          <textarea
+            value={demoAskQuestion}
+            onChange={(event) => {
+              const next = event.target.value.slice(0, demoAskMaxChars);
+              onDemoAskQuestionChange?.(next);
+            }}
+            disabled={demoAskLoading || demoAskUsed}
+            rows={3}
+            placeholder="What are you curious about? e.g. Why is the ocean salty?"
+            className="w-full border-2 border-purple-100 focus:border-purple-400 bg-purple-50 focus:bg-white rounded-2xl p-4 text-base text-gray-800 placeholder:text-gray-400 resize-none outline-none transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+            aria-label="Ask anything"
           />
-          <p className="mt-2 text-xs text-slate-500">Available after grown-up sign-in.</p>
-          <div className="mt-3 flex justify-center">
+          <div className="mt-2 flex justify-end">
+            <p className="text-xs text-gray-400">
+              {demoAskQuestion.length}/{demoAskMaxChars}
+            </p>
+          </div>
+
+          {!demoAskUsed ? (
             <button
               type="button"
-              onClick={() => {
-                if (onUnlockAskAnything) {
-                  onUnlockAskAnything();
-                  return;
-                }
-                onAskGrownUp?.();
-              }}
-              className="inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-bold bg-purple-600 text-white hover:bg-purple-700 transition-colors"
+              onClick={() => onDemoAsk?.()}
+              disabled={demoAskLoading || !demoAskQuestion.trim()}
+              className={`mt-4 w-full text-white font-black py-5 rounded-2xl text-xl transition-all hover:scale-105 active:scale-95 shadow-md ${demoAskQuestion.trim() && !demoAskLoading ? "bg-purple-500 hover:bg-purple-600" : "bg-purple-300 animate-pulse cursor-not-allowed"}`}
             >
-              Ask a grown-up to unlock Ask Anything
+              {demoAskLoading ? "Exploring..." : "Explore →"}
             </button>
-          </div>
+          ) : (
+            <div className="mt-4">
+              <p className="text-sm font-semibold text-amber-700 text-center">
+                Great question! Explore more with a grown-up.
+              </p>
+              <div className="mt-3 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onUnlockAskAnything) {
+                      onUnlockAskAnything();
+                      return;
+                    }
+                    onAskGrownUp?.();
+                  }}
+                  className="inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-bold bg-purple-600 text-white hover:bg-purple-700 transition-colors"
+                >
+                  Continue exploring with a grown-up
+                </button>
+              </div>
+            </div>
+          )}
+
+          {demoAskError ? (
+            <p className="mt-3 text-sm text-red-600 font-semibold text-center">{demoAskError}</p>
+          ) : null}
+
+          {!demoAskUsed ? (
+            <p className="mt-3 text-sm text-slate-500">Try a few asks in demo. Sign in with a grown-up for unlimited questions.</p>
+          ) : null}
         </div>
       )}
 
