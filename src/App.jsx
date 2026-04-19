@@ -480,6 +480,9 @@ export default function App() {
         onAskGrownUp={() => {
           navigateTo("/");
         }}
+        onUnlockAskAnything={() => {
+          navigateTo("/app");
+        }}
       />
     );
   } else if (isLandingRoute) {
@@ -968,9 +971,12 @@ function LandingPage({
                 href="/demo"
                 className="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors"
               >
-                Or explore full demo →
+                Explore demo topics →
               </a>
             </div>
+            <p className="mt-2 text-xs text-slate-400">
+              Want Ask Anything? Sign in with a grown-up.
+            </p>
           </div>
         </section>
 
@@ -1213,6 +1219,7 @@ function MainApp({
   onAwardBadge,
   demoMode = false,
   onAskGrownUp,
+  onUnlockAskAnything,
 }) {
   const DEMO_LOADING_MESSAGES = [
     "Roo is already on the trail!",
@@ -1313,7 +1320,8 @@ function MainApp({
         )}
 
         {demoMode && screen === "home" && (
-          <div className="bg-white/85 backdrop-blur rounded-2xl border border-purple-100 px-3 py-2 mb-4 flex items-center justify-between gap-3">
+          <div className="bg-white/90 backdrop-blur rounded-2xl border border-purple-100 px-3 py-3 mb-4">
+            <div className="flex items-center justify-between gap-3">
             <button
               onClick={() => {
                 onAskGrownUp?.();
@@ -1322,15 +1330,8 @@ function MainApp({
             >
               ← Back to Home
             </button>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-400">Demo Mode</p>
-            <button
-              onClick={() => {
-                onAskGrownUp?.();
-              }}
-              className="rounded-full px-3 py-1.5 text-xs font-bold bg-purple-50 text-purple-600 hover:bg-purple-100 hover:text-purple-700"
-            >
-              Ask a grown-up
-            </button>
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">Demo mode</p>
+            </div>
           </div>
         )}
 
@@ -1342,6 +1343,9 @@ function MainApp({
               onPackChange={setPack}
               onSelect={selectTopic}
               onBrandClick={demoMode ? () => onAskGrownUp?.() : undefined}
+              demoMode={demoMode}
+              onAskGrownUp={onAskGrownUp}
+              onUnlockAskAnything={onUnlockAskAnything}
             />
           )}
 
@@ -1411,7 +1415,7 @@ function MainApp({
               topic={currentTopic}
               quizResult={quizResult}
               onHome={demoMode ? (onAskGrownUp || goHome) : goHome}
-              ctaLabel={demoMode ? "Liked it? Ask a grown-up" : "Try another adventure ✨"}
+              ctaLabel={demoMode ? "Want to ask your own question? Ask a grown-up to sign in" : "Try another adventure ✨"}
             />
           )}
         </div>
