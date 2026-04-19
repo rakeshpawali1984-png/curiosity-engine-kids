@@ -1131,8 +1131,8 @@ export default function CuriousScreen({
         {/* Completed progress bar — all 5 green */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500 font-medium">Adventure complete!</span>
-            <span className="text-sm font-bold text-green-600">🏆 Keep Exploring</span>
+            <span className="text-sm text-gray-500 font-medium">You unlocked a curiosity spark!</span>
+            <span className="text-sm font-bold text-green-600">⚡ Curiosity streak</span>
           </div>
           <div className="flex gap-1.5">
             {[1,2,3,4,5].map((i) => (
@@ -1152,7 +1152,7 @@ export default function CuriousScreen({
         {/* Section 2 — Clickable questions */}
         {(q1 || q2) && (
           <div className="bg-white rounded-3xl shadow-sm border border-blue-100 p-5 mb-4">
-            <p className="text-xs font-bold text-blue-500 uppercase tracking-wider mb-3">🤔 This makes you think…</p>
+            <p className="text-xs font-bold text-blue-500 uppercase tracking-wider mb-3">🧭 Pick your next mystery…</p>
             <div className="flex flex-col gap-3">
               {[q1, q2].filter(Boolean).map((q, i) => (
                 <button
@@ -1162,7 +1162,7 @@ export default function CuriousScreen({
                 >
                   <span className="flex items-center justify-between gap-2">
                     <span>{q}</span>
-                    <span className="text-blue-400 group-hover:text-blue-600 text-base shrink-0">Explore →</span>
+                    <span className="text-blue-400 group-hover:text-blue-600 text-base shrink-0">Chase this clue →</span>
                   </span>
                 </button>
               ))}
@@ -1173,17 +1173,20 @@ export default function CuriousScreen({
         {/* Section 3 — Real-world observation */}
         {observe && (
           <div className="bg-white rounded-3xl shadow-sm border border-green-100 p-5 mb-8">
-            <p className="text-xs font-bold text-green-600 uppercase tracking-wider mb-2">👀 Try noticing…</p>
+            <p className="text-xs font-bold text-green-600 uppercase tracking-wider mb-2">🧪 Real-world mission…</p>
             <p className="text-gray-700 text-base leading-relaxed">{observe}</p>
           </div>
         )}
 
         {/* Ask something new */}
+        <p className="text-center text-sm text-gray-500 font-semibold mb-3">
+          {(activeChild?.name || "Explorer") + ", your next discovery is waiting."}
+        </p>
         <button
           onClick={() => { setInput(""); goAsk(); }}
           className="w-full bg-purple-500 hover:bg-purple-600 hover:scale-105 active:scale-95 text-white font-black py-5 rounded-2xl text-xl transition-all shadow-md"
         >
-          Ask something new 🦘
+          Find another wow 🦘
         </button>
       </div>
     );
