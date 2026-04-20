@@ -4,7 +4,7 @@ import { getPool } from './db.js';
 import { getEnvVar } from './env.js';
 import { logger } from './logger.js';
 
-const FROM = 'Whyroo <hello@whyroo.com>';
+const FROM = 'Rakesh from Whyroo <hello@whyroo.com>';
 const APP_BASE_URL = getEnvVar('APP_BASE_URL', 'https://whyroo.com');
 
 const TOMORROW_BIG_WHY = [
