@@ -267,3 +267,50 @@ export async function createCustomerPortalSession() {
 
   return payload;
 }
+
+export async function getParentDigestSettings() {
+  const headers = await getAuthHeaders();
+  const response = await fetch("/api/parent-digest-settings", {
+    method: "GET",
+    headers,
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.error || "Could not load digest settings");
+  }
+
+  return payload;
+}
+
+export async function updateParentDigestSettings({ enabled, time, timezone }) {
+  const headers = await getAuthHeaders();
+  const response = await fetch("/api/parent-digest-settings", {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify({ enabled, time, timezone }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.error || "Could not save digest settings");
+  }
+
+  return payload;
+}
+
+export async function sendDailySummaryEmailNow() {
+  const headers = await getAuthHeaders();
+  const response = await fetch("/api/send-daily-summary-email", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({}),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.error || "Could not send daily summary");
+  }
+
+  return payload;
+}

@@ -6,8 +6,11 @@ import {
   deleteChildHistory,
   deleteChildProfile,
   getBillingStatus,
+  getParentDigestSettings,
   listChildBadges,
   listChildSearchHistory,
+  sendDailySummaryEmailNow,
+  updateParentDigestSettings,
 } from "../lib/familyData";
 import { summarizeCuriositySuperpowers } from "../lib/curiositySuperpowers";
 
@@ -47,6 +50,19 @@ export default function ChildProfilesScreen({
   const [billingActionLoading, setBillingActionLoading] = useState(false);
   const [billingError, setBillingError] = useState("");
   const [billingStatus, setBillingStatus] = useState(null);
+  const [expandDigest, setExpandDigest] = useState(false);
+  const [digestLoading, setDigestLoading] = useState(false);
+  const [digestSaving, setDigestSaving] = useState(false);
+  const [digestSending, setDigestSending] = useState(false);
+  const [digestError, setDigestError] = useState("");
+  const [digestMessage, setDigestMessage] = useState("");
+  const [digestSettings, setDigestSettings] = useState({
+    enabled: true,
+    time: "18:30",
+    timezone: "Australia/Sydney",
+    allowedTimezones: ["Australia/Sydney"],
+    lastSentLocalDate: null,
+  });
   const canCreate = children.length < 3;
 
   const activeChild = useMemo(
@@ -187,6 +203,72 @@ export default function ChildProfilesScreen({
     }
   };
 
+  const refreshDigestSettings = async () => {
+    setDigestLoading(true);
+    setDigestError("");
+    try {
+      const settings = await getParentDigestSettings();
+      setDigestSettings({
+        enabled: typeof settings?.enabled === "boolean" ? settings.enabled : true,
+        time: settings?.time || "18:30",
+        timezone: settings?.timezone || "Australia/Sydney",
+        allowedTimezones: Array.isArray(settings?.allowedTimezones) && settings.allowedTimezones.length
+          ? settings.allowedTimezones
+          : ["Australia/Sydney"],
+        lastSentLocalDate: settings?.lastSentLocalDate || null,
+      });
+    } catch (e) {
+      setDigestError(e.message || "Could not load digest settings");
+    } finally {
+      setDigestLoading(false);
+    }
+  };
+
+  const handleSaveDigestSettings = async () => {
+    setDigestSaving(true);
+    setDigestError("");
+    setDigestMessage("");
+    try {
+      const result = await updateParentDigestSettings({
+        enabled: digestSettings.enabled,
+        time: digestSettings.time,
+        timezone: digestSettings.timezone,
+      });
+      setDigestSettings((prev) => ({
+        ...prev,
+        enabled: Boolean(result?.enabled),
+        time: result?.time || prev.time,
+        timezone: result?.timezone || prev.timezone,
+      }));
+      setDigestMessage("Daily summary settings saved.");
+    } catch (e) {
+      setDigestError(e.message || "Could not save digest settings");
+    } finally {
+      setDigestSaving(false);
+    }
+  };
+
+  const handleSendDigestNow = async () => {
+    setDigestSending(true);
+    setDigestError("");
+    setDigestMessage("");
+    try {
+      const result = await sendDailySummaryEmailNow();
+      if (result?.skipped && result?.reason === "no_activity_today") {
+        setDigestMessage("No activity found for today yet, so no summary was sent.");
+      } else if (result?.skipped) {
+        setDigestMessage("Summary skipped (email provider not configured).");
+      } else {
+        setDigestMessage("Today's summary email was sent.");
+      }
+      await refreshDigestSettings();
+    } catch (e) {
+      setDigestError(e.message || "Could not send summary");
+    } finally {
+      setDigestSending(false);
+    }
+  };
+
   const handleUpgrade = async () => {
     setBillingActionLoading(true);
     setBillingError("");
@@ -214,6 +296,7 @@ export default function ChildProfilesScreen({
 
   useEffect(() => {
     refreshBillingStatus();
+    refreshDigestSettings();
   }, []);
 
   const isPaidPlan = billingStatus?.subscriptionStatus === "active" || billingStatus?.subscriptionStatus === "past_due";
@@ -643,6 +726,93 @@ export default function ChildProfilesScreen({
               </button>
             )}
           </div>
+        </div>
+
+        <div className="bg-white rounded-3xl shadow-lg p-6 border border-sky-100 mb-5">
+          <button
+            onClick={() => setExpandDigest((v) => !v)}
+            className="w-full flex items-center justify-between"
+          >
+            <div className="text-left">
+              <p className="text-xs font-bold uppercase tracking-widest text-sky-600 mb-2">
+                Daily Parent Summary
+              </p>
+              <p className="text-sm text-gray-500">Get a daily email of what your kids explored + dinner table prompts.</p>
+            </div>
+            <span className="text-sky-600 font-bold text-xl">{expandDigest ? "−" : "+"}</span>
+          </button>
+
+          {expandDigest && (
+            <div className="mt-4">
+              {digestLoading ? (
+                <p className="text-sm text-gray-500">Loading summary settings...</p>
+              ) : (
+                <>
+                  <label className="flex items-center gap-3 mb-3">
+                    <input
+                      type="checkbox"
+                      checked={digestSettings.enabled}
+                      onChange={(e) => setDigestSettings((prev) => ({ ...prev, enabled: e.target.checked }))}
+                      className="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-400"
+                    />
+                    <span className="text-sm font-semibold text-gray-700">Email me a daily summary</span>
+                  </label>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                    <label className="text-sm text-gray-600">
+                      Send time
+                      <input
+                        type="time"
+                        value={digestSettings.time}
+                        onChange={(e) => setDigestSettings((prev) => ({ ...prev, time: e.target.value }))}
+                        className="mt-1 w-full rounded-2xl border-2 border-gray-200 focus:border-sky-400 px-3 py-2 outline-none bg-white"
+                      />
+                    </label>
+
+                    <label className="text-sm text-gray-600">
+                      Timezone
+                      <select
+                        value={digestSettings.timezone}
+                        onChange={(e) => setDigestSettings((prev) => ({ ...prev, timezone: e.target.value }))}
+                        className="mt-1 w-full rounded-2xl border-2 border-gray-200 focus:border-sky-400 px-3 py-2 outline-none bg-white"
+                      >
+                        {digestSettings.allowedTimezones.map((tz) => (
+                          <option key={tz} value={tz}>{tz}</option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+
+                  {digestSettings.lastSentLocalDate && (
+                    <p className="text-xs text-gray-500 mb-3">
+                      Last summary sent for local date: {digestSettings.lastSentLocalDate}
+                    </p>
+                  )}
+
+                  {digestError && <p className="text-sm text-red-600 font-semibold mb-2">{digestError}</p>}
+                  {digestMessage && <p className="text-sm text-green-700 font-semibold mb-2">{digestMessage}</p>}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      onClick={handleSaveDigestSettings}
+                      disabled={digestSaving || digestSending || digestLoading}
+                      className="w-full rounded-2xl bg-sky-500 hover:bg-sky-600 disabled:bg-sky-300 text-white font-bold py-3 transition-all active:scale-95"
+                    >
+                      {digestSaving ? "Saving..." : "Save Settings"}
+                    </button>
+
+                    <button
+                      onClick={handleSendDigestNow}
+                      disabled={digestSending || digestSaving || digestLoading}
+                      className="w-full rounded-2xl bg-white border-2 border-sky-200 hover:border-sky-400 text-sky-700 font-bold py-3 transition-all active:scale-95 disabled:text-sky-300 disabled:border-sky-100"
+                    >
+                      {digestSending ? "Sending..." : "Send Today's Summary Now"}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {activeChild && onDone && (
