@@ -1024,6 +1024,37 @@ export default function CuriousScreen({
 
   const buildMasteryBadgeTitle = (topicData) => `${topicData?.title || "Adventure"} Mastery ⭐`;
 
+  const HOOK_BRIDGES = [
+    "But here's the strange part...",
+    "And something even stranger happened...",
+    "And something even weirder happened...",
+  ];
+
+  const PRIMARY_CTA_OPTIONS = ["I want to know →", "Tell me →", "Show me →", "Let's find out →"];
+  const SECONDARY_CTA_OPTIONS = ["Show me →", "Tell me →", "Let's find out →"];
+
+  const pickBySeed = (text, options) => {
+    const source = String(text || "");
+    if (!Array.isArray(options) || options.length === 0) return "";
+    let score = 0;
+    for (let i = 0; i < source.length; i += 1) score += source.charCodeAt(i);
+    return options[score % options.length];
+  };
+
+  const cleanupHookQuestion = (question) => String(question || "").trim().replace(/[?!.]+$/, "");
+
+  const toPrimaryHook = (question) => {
+    const clean = cleanupHookQuestion(question);
+    if (!clean) return "😲 Wait... are you ready for something wild?";
+    return `😲 Wait... ${clean}?`;
+  };
+
+  const toSecondaryHook = (question) => {
+    const clean = cleanupHookQuestion(question);
+    if (!clean) return "👀 Could this really happen?";
+    return `👀 ${clean}?`;
+  };
+
   const handleCuriosityClick = (question) => {
     setInput(question);
     triggerSearch(question);
@@ -1118,6 +1149,9 @@ export default function CuriousScreen({
     const q1      = c[1] || null;
     const q2      = c[2] || null;
     const observe = c[3] || null;
+    const bridgeLine = pickBySeed(`${fact || ""}-${q1 || ""}`, HOOK_BRIDGES);
+    const primaryCta = pickBySeed(q1, PRIMARY_CTA_OPTIONS) || "I want to know →";
+    const secondaryCta = pickBySeed(q2, SECONDARY_CTA_OPTIONS) || "Show me →";
     return wrapper(
       <div className="pb-10">
         {/* Back to ask */}
@@ -1152,17 +1186,23 @@ export default function CuriousScreen({
         {/* Section 2 — Clickable questions */}
         {(q1 || q2) && (
           <div className="bg-white rounded-3xl shadow-sm border border-blue-100 p-5 mb-4">
-            <p className="text-xs font-bold text-blue-500 uppercase tracking-wider mb-3">🧭 Pick your next mystery…</p>
+            <p className="text-xs font-bold text-blue-500 uppercase tracking-wider mb-1">{bridgeLine}</p>
             <div className="flex flex-col gap-3">
               {[q1, q2].filter(Boolean).map((q, i) => (
                 <button
                   key={i}
                   onClick={() => handleCuriosityClick(q)}
-                  className="text-left w-full bg-blue-50 hover:bg-blue-100 border border-blue-200 hover:border-blue-400 rounded-2xl px-4 py-3 text-blue-800 font-semibold text-sm leading-snug transition-all hover:scale-[1.02] active:scale-95 group"
+                  className={
+                    i === 0
+                      ? "text-left w-full bg-purple-50 hover:bg-purple-100 border-2 border-purple-300 hover:border-purple-500 rounded-2xl px-4 py-4 text-purple-900 font-bold text-base leading-snug transition-all hover:scale-[1.02] active:scale-95 group"
+                      : "text-left w-full bg-blue-50 hover:bg-blue-100 border border-blue-200 hover:border-blue-400 rounded-2xl px-4 py-3 text-blue-800 font-semibold text-sm leading-snug transition-all hover:scale-[1.01] active:scale-95 group"
+                  }
                 >
                   <span className="flex items-center justify-between gap-2">
-                    <span>{q}</span>
-                    <span className="text-blue-400 group-hover:text-blue-600 text-base shrink-0">Chase this clue →</span>
+                    <span>{i === 0 ? toPrimaryHook(q) : toSecondaryHook(q)}</span>
+                    <span className={i === 0 ? "text-purple-500 group-hover:text-purple-700 text-base shrink-0" : "text-blue-400 group-hover:text-blue-600 text-base shrink-0"}>
+                      {i === 0 ? primaryCta : secondaryCta}
+                    </span>
                   </span>
                 </button>
               ))}
@@ -1174,13 +1214,13 @@ export default function CuriousScreen({
         {observe && (
           <div className="bg-white rounded-3xl shadow-sm border border-green-100 p-5 mb-8">
             <p className="text-xs font-bold text-green-600 uppercase tracking-wider mb-2">🧪 Real-world mission…</p>
-            <p className="text-gray-700 text-base leading-relaxed">{observe}</p>
+            <p className="text-gray-700 text-base leading-relaxed">🕵️ Mission: {observe} You might discover something surprising 👀</p>
           </div>
         )}
 
         {/* Ask something new */}
         <p className="text-center text-sm text-gray-500 font-semibold mb-3">
-          {(activeChild?.name || "Explorer") + ", your next discovery is waiting."}
+          One more before you go?
         </p>
         <button
           onClick={() => { setInput(""); goAsk(); }}
