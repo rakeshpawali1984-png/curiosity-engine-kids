@@ -7,6 +7,7 @@ import BadgeScreen from "./BadgeScreen";
 import FamilyTopBar from "./FamilyTopBar";
 import { getBillingStatus } from "../lib/familyData";
 import { hasSupabaseConfig, supabase } from "../lib/supabaseClient";
+import { incrementSessionQuestionsCount, trackEvent } from "../lib/analytics";
 import { logger } from "../lib/logger";
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -967,6 +968,19 @@ export default function CuriousScreen({
     activeSearchIdRef.current = null;
     setScreen("loading");
     window.scrollTo(0, 0);
+
+    const sessionQuestionCount = incrementSessionQuestionsCount();
+    trackEvent("question_asked", {
+      question_length: query.length,
+      has_active_child: Boolean(activeChild?.id),
+      child_age_range: activeChild?.age_range || "unknown",
+      source: "curious_screen",
+    });
+    trackEvent("session_questions_count", {
+      count: sessionQuestionCount,
+      source: "curious_screen",
+    });
+
     try {
       const questionId =
         (typeof crypto !== "undefined" && crypto.randomUUID)
@@ -983,6 +997,10 @@ export default function CuriousScreen({
       const partialTopic = buildPartialTopic(partial, query);
       setTopic(partialTopic);
       setScreen("story");
+      trackEvent("answer_viewed", {
+        question_id: questionId,
+        source: "curious_screen",
+      });
 
       // Store deep promise and resolve in background — merges when ready
       deepPromiseRef.current = deepPromise;
@@ -1056,6 +1074,10 @@ export default function CuriousScreen({
   };
 
   const handleCuriosityClick = (question) => {
+    trackEvent("followup_clicked", {
+      question_text: String(question || "").slice(0, 140),
+      source: "curiosity_hook",
+    });
     setInput(question);
     triggerSearch(question);
   };

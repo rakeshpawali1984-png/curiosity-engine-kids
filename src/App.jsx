@@ -18,6 +18,7 @@ const ChildProfilesScreen = lazy(() => import("./components/ChildProfilesScreen"
 const FamilyTopBar = lazy(() => import("./components/FamilyTopBar"));
 const JourneyScreen = lazy(() => import("./components/JourneyScreen"));
 import { hasSupabaseConfig, supabase } from "./lib/supabaseClient";
+import { trackReturnNextDay } from "./lib/analytics";
 import {
   awardChildBadge,
   createCheckoutSession,
@@ -113,6 +114,10 @@ export default function App() {
     const nextPath = nextSearch ? `${path}?${nextSearch}` : path;
     navigateTo(nextPath, { replace: true });
   };
+
+  useEffect(() => {
+    trackReturnNextDay();
+  }, []);
 
   useEffect(() => {
     const handlePopState = () => {
