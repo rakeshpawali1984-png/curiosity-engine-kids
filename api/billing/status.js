@@ -1,7 +1,7 @@
 import { parseBearerToken, validateSupabaseToken } from '../auth.js';
 import { getBillingStatus } from '../subscription.js';
 
-const FREE_DAILY_QUESTION_LIMIT = Number(process.env.FREE_DAILY_QUESTION_LIMIT || '10');
+const FREE_DAILY_QUESTION_LIMIT = Number(process.env.FREE_DAILY_QUESTION_LIMIT || '5');
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {

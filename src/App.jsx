@@ -1052,7 +1052,7 @@ function LandingPage({
           <div className="grid gap-4 sm:grid-cols-2 mb-6">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
               <p className="text-sm uppercase tracking-wider font-extrabold text-slate-500 mb-2">Free</p>
-              <p className="text-lg font-bold text-slate-700">10 questions per day</p>
+              <p className="text-lg font-bold text-slate-700">5 questions per day</p>
             </div>
             <div className="rounded-2xl border border-purple-200 bg-purple-50 p-5">
               <p className="text-sm uppercase tracking-wider font-extrabold text-purple-500 mb-2">Paid</p>
