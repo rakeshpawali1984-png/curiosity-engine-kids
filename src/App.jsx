@@ -18,7 +18,7 @@ const ChildProfilesScreen = lazy(() => import("./components/ChildProfilesScreen"
 const FamilyTopBar = lazy(() => import("./components/FamilyTopBar"));
 const JourneyScreen = lazy(() => import("./components/JourneyScreen"));
 import { hasSupabaseConfig, supabase } from "./lib/supabaseClient";
-import { trackReturnNextDay } from "./lib/analytics";
+import { trackEvent, trackReturnNextDay } from "./lib/analytics";
 import {
   awardChildBadge,
   createCheckoutSession,
@@ -118,6 +118,16 @@ export default function App() {
   useEffect(() => {
     trackReturnNextDay();
   }, []);
+
+  useEffect(() => {
+    if (isLandingRoute) {
+      trackEvent("landing_viewed", {
+        is_authenticated: Boolean(session?.user?.id),
+        has_children: children.length > 0,
+        source: "landing_page",
+      });
+    }
+  }, [isLandingRoute, session, children]);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -919,7 +929,14 @@ function LandingPage({
     }
   };
 
-  const goTo = (i) => setPreviewIndex((i + PREVIEW_EXAMPLES.length) % PREVIEW_EXAMPLES.length);
+  const goTo = (i) => {
+    trackEvent("suggested_question_clicked", {
+      preview_index: i,
+      total_examples: PREVIEW_EXAMPLES.length,
+      source: "landing_preview",
+    });
+    setPreviewIndex((i + PREVIEW_EXAMPLES.length) % PREVIEW_EXAMPLES.length);
+  };
 
   return (
     <div className="min-h-[100dvh] bg-gradient-to-br from-sky-100 via-purple-50 to-pink-100 text-slate-800">
