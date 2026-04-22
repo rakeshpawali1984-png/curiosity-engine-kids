@@ -149,7 +149,7 @@ function uniqueQuestions(rows, limit = 5) {
   return out;
 }
 
-function buildChildSummaries(rows, limitPerChild = 2) {
+function buildChildSummaries(rows, limitPerChild = 3) {
   const byChild = new Map();
 
   for (const row of rows) {
@@ -450,7 +450,7 @@ export async function sendDailySummaryForParent({
 
     let html;
     if (rows.length > 0) {
-      const childSummaries = buildChildSummaries(rows, 2);
+      const childSummaries = buildChildSummaries(rows, 3);
       const activeChildNameSet = new Set(childSummaries.map((entry) => entry.name.toLowerCase()));
       const inactiveChildNames = childProfiles
         .map((profile) => String(profile.name || '').trim())
