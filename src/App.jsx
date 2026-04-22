@@ -976,7 +976,7 @@ function LandingPage({
                 href="/demo"
                 className="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors"
               >
-                Explore demo topics →
+                Explore demo →
               </a>
             </div>
             <p className="mt-2 text-xs text-slate-400">
@@ -1019,6 +1019,36 @@ function LandingPage({
             <li className="rounded-xl bg-purple-50 border border-purple-100 px-4 py-3">No personal data collected from children</li>
             <li className="rounded-xl bg-purple-50 border border-purple-100 px-4 py-3">Built with dual-layer safety checks to keep content child-appropriate.</li>
           </ul>
+        </section>
+
+        <section className="bg-white rounded-3xl border border-purple-100 p-6 sm:p-8 mb-6">
+          <h2 className="text-2xl sm:text-3xl font-black text-purple-800 mb-2">Good for kids. Great for families.</h2>
+          <p className="text-sm sm:text-base text-slate-500 mb-5">Some of the best parenting moments start with "I don't know."</p>
+          <div className="grid gap-4 sm:grid-cols-3">
+            {[
+              {
+                icon: "✨",
+                title: "Answers you'll feel good about",
+                desc: "No more guessing when they ask the hard questions.",
+              },
+              {
+                icon: "💬",
+                title: "Dinner just got interesting",
+                desc: "Turn their questions into real conversations.",
+              },
+              {
+                icon: "🙌",
+                title: "Know what's on their mind",
+                desc: "A daily summary of their curiosity, straight to your inbox.",
+              },
+            ].map(({ icon, title, desc }) => (
+              <div key={title} className="rounded-2xl bg-purple-50 border border-purple-100 p-4">
+                <p className="text-2xl mb-3">{icon}</p>
+                <p className="font-bold text-slate-800 mb-1">{title}</p>
+                <p className="text-sm text-slate-500 leading-snug">{desc}</p>
+              </div>
+            ))}
+          </div>
         </section>
 
         <section className="bg-white rounded-3xl border border-purple-100 p-6 sm:p-8 mb-6">
