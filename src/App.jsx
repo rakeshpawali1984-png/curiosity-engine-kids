@@ -14,6 +14,7 @@ const ActivityScreen = lazy(() => import("./components/ActivityScreen"));
 const QuizScreen = lazy(() => import("./components/QuizScreen"));
 const BadgeScreen = lazy(() => import("./components/BadgeScreen"));
 const CuriousScreen = lazy(() => import("./components/CuriousScreen"));
+const CuriousScreenV2 = lazy(() => import("./components/CuriousScreenV2"));
 const ChildProfilesScreen = lazy(() => import("./components/ChildProfilesScreen"));
 const FamilyTopBar = lazy(() => import("./components/FamilyTopBar"));
 const JourneyScreen = lazy(() => import("./components/JourneyScreen"));
@@ -87,8 +88,10 @@ export default function App() {
   const billingStatus = new URLSearchParams(search).get("billing");
   const isLandingRoute = path === "/";
   const isAppRoute = path === "/app";
+  const isAppV2Route = path === "/app-v2";
   const isParentRoute = path === "/parent";
   const isCuriousRoute = path === "/get-curious";
+  const isCuriousV2Route = path === "/get-curious-v2";
   const isDemoRoute = path === "/demo";
   const isPrivacyRoute = path === "/privacy";
   const isTermsRoute = path === "/terms";
@@ -313,10 +316,10 @@ export default function App() {
   }, [session?.user?.id]);
 
   useEffect(() => {
-    if (session && familyReady && !activeChild && !isParentRoute && (isAppRoute || isCuriousRoute)) {
+    if (session && familyReady && !activeChild && !isParentRoute && (isAppRoute || isCuriousRoute || isAppV2Route || isCuriousV2Route)) {
       navigateTo("/parent", { replace: true });
     }
-  }, [session, familyReady, activeChild, isParentRoute, isAppRoute, isCuriousRoute]);
+  }, [session, familyReady, activeChild, isParentRoute, isAppRoute, isCuriousRoute, isAppV2Route, isCuriousV2Route]);
 
   useEffect(() => {
     if (!isParentRoute || parentPortalUnlocked) return;
@@ -772,6 +775,23 @@ export default function App() {
           billingFlowStatus={billingStatus}
           onDismissBillingFlow={clearBillingSearchParam}
           onRecordSearch={(query) => handleTrackSearch(query, "curious")}
+          onAwardBadge={(badgeTitle, sourceSearchId) =>
+            handleTrackBadge(badgeTitle, sourceSearchId)
+          }
+        />
+      </Suspense>
+    );
+  }
+
+  if (isAppV2Route || isCuriousV2Route) {
+    return (
+      <Suspense fallback={<AppLoadingFallback />}>
+        <CuriousScreenV2
+          activeChild={activeChild}
+          onOpenJourney={() => setShowJourney(true)}
+          onOpenParentPortal={openParentPortal}
+          onOpenSite={() => navigateTo("/")}
+          onRecordSearch={(query) => handleTrackSearch(query, "curious_v2")}
           onAwardBadge={(badgeTitle, sourceSearchId) =>
             handleTrackBadge(badgeTitle, sourceSearchId)
           }

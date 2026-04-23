@@ -63,6 +63,34 @@ FEW-SHOT EXAMPLE (topic: "gravity"):
 
 Return ONLY raw JSON. Every field is required.`,
 
+  creator_fast_v2: `${CREATOR_SHARED_RULES}
+
+Return ONLY this JSON (nothing else):
+{
+  "title": "A short kid-friendly title as a question or statement",
+  "emoji": "A single relevant emoji",
+  "story": "A vivid 3-4 sentence mini-story with a child character noticing this topic",
+  "explanation": "A clear 3-4 sentence explanation with one simple analogy and one real-world example",
+  "keyLesson": "One short sentence - the most important takeaway",
+  "wow": "One surprising fact in a single sentence",
+  "badge": "Badge name + relevant emoji",
+  "quick_check_1": {
+    "question": "One short playful question right after the explanation",
+    "type": "mcq or truefalse",
+    "options": ["Only for mcq: option A", "Only for mcq: option B", "Only for mcq: option C"],
+    "answer": "For mcq use index 0/1/2, for truefalse use true/false"
+  }
+}
+
+IMPORTANT:
+- quick_check_1 is required
+- Keep every sentence short and easy to read aloud
+- Make the first quick check feel playful, not school-like
+- If type is "mcq", include exactly 3 options
+- If type is "truefalse", do not include options
+
+Return ONLY raw JSON. Every field is required.`,
+
   creator_deep: `${CREATOR_SHARED_RULES}
 
 You will be given a topic. Return ONLY this JSON (nothing else):
@@ -93,6 +121,69 @@ IMPORTANT for quiz:
 - For "mcq": provide exactly 3 options and use an integer answer index (0, 1, or 2)
 - For "truefalse": do not include options; answer must be boolean true or false
 - Place the MCQ correct answer at varied positions (not always position 0)
+
+Return ONLY raw JSON. Every field is required.`,
+
+  creator_deep_v2: `${CREATOR_SHARED_RULES}
+
+You will be given a topic. Return ONLY this JSON (nothing else):
+{
+  "activity": {
+    "title": "A short immediate activity title",
+    "steps": ["Step 1", "Step 2", "Step 3"]
+  },
+  "quick_check_2": {
+    "question": "One short playful check after the activity",
+    "type": "mcq or truefalse",
+    "options": ["Only for mcq: option A", "Only for mcq: option B", "Only for mcq: option C"],
+    "answer": "For mcq use index 0/1/2, for truefalse use true/false"
+  },
+  "quiz": [
+    { "question": "Question 1", "type": "mcq", "options": ["Wrong", "Correct", "Wrong"], "answer": 1 },
+    { "question": "Question 2", "type": "truefalse", "answer": true },
+    { "question": "Question 3", "type": "mcq", "options": ["Wrong", "Wrong", "Correct"], "answer": 2 }
+  ],
+  "curiosity": [
+    "A short related question the child might now wonder about",
+    "Another short related question that opens a new direction"
+  ],
+  "observe": "A real-world observation the child can do today at home or outside (starts with an action verb, 1 sentence)"
+}
+
+IMPORTANT for activity:
+- Must be immediately doable with NO tools and NO setup
+- Do NOT ask for pen, paper, drawing, printing, collecting household items, or asking a parent for help
+- Keep to 2-3 short steps total
+- Child should be able to finish in under 45 seconds
+- Use action-first verbs like "Look", "Point", "Listen", "Say", "Compare"
+- NEVER use imagination or visualisation steps — no "close your eyes", "imagine", "picture", or "think about"
+- Steps must involve something REAL the child can see, touch, hear, or observe right now in their environment
+- NEVER use "Say this: [fact]" steps — reciting a sentence is not an activity
+- NEVER mention tapping, clicking, or buttons (e.g. "Tap I tried it") — those do not exist
+- BAD example: "Close your eyes and imagine you are at the ocean"
+- BAD example: "Say this: Salt comes from rocks on land"
+- GOOD example: "Look at the nearest glass of water — that is what rain water looks like before rivers carry salt to the sea"
+
+IMPORTANT for quick_check_2:
+- Required
+- Allowed types: "mcq" or "truefalse"
+- If type is "mcq", include exactly 3 options and integer answer index
+- If type is "truefalse", do not include options and answer must be boolean true/false
+
+IMPORTANT for quiz:
+- Return exactly 3 questions
+- Use a mixed format: exactly 2 "mcq" and exactly 1 "truefalse"
+- Do not use "open" questions
+- For "mcq": provide exactly 3 options and use an integer answer index (0, 1, or 2)
+- For "truefalse": do not include options; answer must be boolean true or false
+- Place the MCQ correct answer at varied positions (not always position 0)
+
+IMPORTANT for curiosity:
+- Return exactly 2 short follow-up questions
+
+IMPORTANT for observe:
+- A single actionable sentence a child can do right now, no tools needed
+- Start with an action verb like "Look", "Listen", "Notice", "Try", "Find"
 
 Return ONLY raw JSON. Every field is required.`,
 

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import ProgressBar from "./ProgressBar";
 
-export default function QuizScreen({ topic, onComplete, onHome, homeLabel = "Home" }) {
+export default function QuizScreen({ topic, onComplete, onHome, homeLabel = "Home", showProgress = true }) {
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState(null);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -52,7 +52,7 @@ export default function QuizScreen({ topic, onComplete, onHome, homeLabel = "Hom
       <button onClick={onHome} className="mb-4 flex items-center gap-1 text-gray-400 hover:text-purple-600 font-semibold text-base transition-colors">
         ← {homeLabel}
       </button>
-      <ProgressBar step={4} />
+      {showProgress && <ProgressBar step={4} />}
 
       {/* Question counter */}
       <div className="flex flex-wrap justify-between items-center gap-1 mb-4 px-1">
