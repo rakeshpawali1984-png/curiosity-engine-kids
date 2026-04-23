@@ -73,6 +73,13 @@ npm run dev
 
 4. Journey view:
 - displays child-specific badges and recent discoveries
+- dominant superpower label aligns with observed history trends
+
+4b. Badge and mini-games (non-demo):
+- badge screen shows inferred superpower block
+- mastery message reflects graded quiz accuracy
+- `Play a Quick Game` appears and launches one mini-game
+- game button disables after one play in same badge session
 
 5. Demo mode (`/demo`):
 - home shows static topic cards sourced from `src/data/topics.js`

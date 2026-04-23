@@ -89,6 +89,9 @@ Use when changing:
 - `src/components/BadgeScreen.jsx`
 - `src/components/CuriousScreen.jsx`
 - `src/components/JourneyScreen.jsx`
+- `src/components/games/SpeedTap.jsx`
+- `src/components/games/FlashFacts.jsx`
+- `src/components/games/EmojiCryptogram.jsx`
 
 Use when changing:
 
@@ -96,6 +99,17 @@ Use when changing:
 2. curious prompts and render behavior
 3. journey and badge presentation
 4. demo-only UX restrictions (quiz/game gating)
+
+### Superpower subsystem
+
+- `src/lib/curiositySuperpowers.js`
+- `src/data/curiositySuperpowersConfig.js`
+
+Use when changing:
+
+1. superpower inference keywords/logic
+2. superpower names, emoji, summaries, and defaults
+3. dominant superpower ranking behavior in journey/badge contexts
 
 ## Demo mode constraints (current)
 

@@ -1,7 +1,7 @@
 # Data Model and RLS
 
 - Owner: TBD
-- Last updated: 2026-04-13
+- Last updated: 2026-04-23
 - Status: active
 - Related docs:
 	[../40-security/PARENT_PIN_SECURITY_MODEL.md](../40-security/PARENT_PIN_SECURITY_MODEL.md),
@@ -132,6 +132,13 @@ These support:
 1. Delete child profile -> cascades child_searches and child_badges.
 2. Delete history action -> deletes child_searches only.
 3. Badges survive history deletion by design.
+
+## Derived superpower model (current)
+
+1. Learning superpowers are inferred at runtime from child history and topic/badge text.
+2. Superpower catalog is configured in app code (`src/data/curiositySuperpowersConfig.js`).
+3. No dedicated superpower persistence table exists yet.
+4. Journey and badge screens consume derived superpower summaries directly.
 
 ## Migration discipline notes
 

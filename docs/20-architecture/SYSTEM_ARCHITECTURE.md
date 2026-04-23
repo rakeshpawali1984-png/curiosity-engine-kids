@@ -1,7 +1,7 @@
 # System Architecture
 
 - Owner: TBD
-- Last updated: 2026-04-16
+- Last updated: 2026-04-23
 - Status: active
 - Related docs:
 	[../30-data/DATA_MODEL_AND_RLS.md](../30-data/DATA_MODEL_AND_RLS.md),
@@ -11,7 +11,9 @@
 	[../../src/App.jsx](../../src/App.jsx),
 	[../../api/spark.js](../../api/spark.js),
 	[../../api/cache.js](../../api/cache.js),
-	[../../src/lib/supabaseClient.js](../../src/lib/supabaseClient.js)
+	[../../src/lib/supabaseClient.js](../../src/lib/supabaseClient.js),
+	[../../src/lib/curiositySuperpowers.js](../../src/lib/curiositySuperpowers.js),
+	[../../src/data/curiositySuperpowersConfig.js](../../src/data/curiositySuperpowersConfig.js)
 
 ## High-level architecture
 
@@ -69,8 +71,15 @@ flowchart LR
 - classic screen chain components
 - curious engine component with staged generation pipeline
 - journey component for child progress view
+- badge component with superpower reveal and optional mini-game entry
+- mini-game components under `src/components/games/*`
 
-4. Shared top-level chrome
+4. Superpower inference subsystem
+- `src/lib/curiositySuperpowers.js` contains runtime inference/summarization logic
+- `src/data/curiositySuperpowersConfig.js` holds configurable superpower catalog and default
+- dominant superpower is derived from child history entries (not persisted as standalone table)
+
+5. Shared top-level chrome
 - FamilyTopBar displays child identity and journey action
 - hidden long-press parent shortcut
 

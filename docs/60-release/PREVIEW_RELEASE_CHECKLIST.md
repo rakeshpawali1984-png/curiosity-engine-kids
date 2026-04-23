@@ -48,6 +48,8 @@ Use this checklist before approving a preview build for merge.
 - [ ] Demo mode progression works: Story -> Explanation -> Activity -> Quiz -> Badge.
 - [ ] Demo quiz renders exactly 4 questions and excludes open/hint prompt flow.
 - [ ] Demo badge screen hides quick game CTA.
+- [ ] Non-demo badge screen shows superpower reveal and mastery copy correctly.
+- [ ] Non-demo quick game CTA launches and only allows one play per badge view.
 - [ ] Progress/badge state is written once and is idempotent on refresh.
 - [ ] Exit child mode returns to safe parent-controlled route.
 

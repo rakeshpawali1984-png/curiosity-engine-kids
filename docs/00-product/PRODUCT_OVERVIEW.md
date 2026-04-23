@@ -1,7 +1,7 @@
 # Product Overview
 
 - Owner: TBD
-- Last updated: 2026-04-13
+- Last updated: 2026-04-23
 - Status: active
 - Related docs:
 	[../10-flows/AUTH_AND_PARENT_PORTAL_FLOW.md](../10-flows/AUTH_AND_PARENT_PORTAL_FLOW.md),
@@ -62,7 +62,10 @@ The product is intentionally designed with parent-first control and child-first 
 3. Child experience
 - Classic flow: home -> story -> explanation -> activity -> quiz -> badge.
 - Curious flow: question -> generated learning content -> quiz -> badge + curiosity prompts.
-- Journey screen for child-facing progress.
+- Badge screen includes learning superpower reveal and mastery feedback.
+- Optional post-quiz mini-game engagement in non-demo mode.
+- Journey screen for child-facing progress, including dominant superpower summary.
+- Demo mode provides fixed static-topic preview with restricted progression loops.
 
 4. Data model
 - parents
@@ -92,6 +95,9 @@ The product is intentionally designed with parent-first control and child-first 
 2. Badge economy refinement
 - evaluate milestone-based badges to avoid badge inflation.
 
-3. Parent account recovery hardening
+3. Superpower progression model
+- evolve from flat superpower summary toward kid-friendly mastery levels and rewards.
+
+4. Parent account recovery hardening
 - forgot PIN flow with re-auth challenge.
 

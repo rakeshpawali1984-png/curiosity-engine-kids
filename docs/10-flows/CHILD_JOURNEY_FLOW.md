@@ -47,7 +47,27 @@ State progression:
 Data side effects:
 
 1. Topic selection logs a child search.
-2. Completing quiz awards child badge.
+2. Completing quiz awards child completion badge.
+3. Mastery badge is awarded when quiz accuracy threshold is met.
+
+## Badge and post-quiz behavior
+
+Badge screen behavior:
+
+1. Shows topic badge and inferred learning superpower.
+2. Shows mastery message for graded quiz questions.
+3. Primary CTA returns to topic selection.
+
+Post-quiz mini-games (non-demo only):
+
+1. Speed Tap
+2. Flash Facts
+3. Emoji Cryptogram
+
+Notes:
+
+1. Mini-game entry is available once per badge view.
+2. Demo mode explicitly hides mini-game entry and overlays.
 
 ## Demo mode flow (/demo)
 
@@ -120,6 +140,7 @@ Purpose:
 
 1. child-facing reflection screen
 2. shows own badges and recent discoveries
+3. summarizes dominant superpower from exploration history
 
 Data sources:
 
