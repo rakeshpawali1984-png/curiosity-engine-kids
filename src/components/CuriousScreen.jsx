@@ -284,7 +284,7 @@ function normalizeQuiz(quiz) {
       return { question, type: "mcq", options, answer };
     })
     .filter(Boolean)
-    .slice(0, 5);
+    .slice(0, 4);
 }
 
 function parseFast(raw) {
@@ -307,6 +307,15 @@ function parseDeep(raw) {
   if (!Array.isArray(obj.quiz)      || !obj.quiz.length)                    missing.push("quiz");
   if (!Array.isArray(obj.curiosity) || !obj.curiosity.length)               missing.push("curiosity");
   if (missing.length) throw new Error("Deep response missing: " + missing.join(", "));
+  if (obj.emojiCryptogram && typeof obj.emojiCryptogram === "object") {
+    obj.emojiCryptogram = {
+      sentence: typeof obj.emojiCryptogram.sentence === "string"
+        ? obj.emojiCryptogram.sentence.trim()
+        : "",
+    };
+  } else {
+    obj.emojiCryptogram = null;
+  }
   obj.quiz = shuffleQuiz(normalizeQuiz(obj.quiz));
   return obj;
 }
@@ -336,6 +345,7 @@ function buildPartialTopic(fast, userQuery) {
     activity:    null,
     quiz:        [],
     curiosity:   [],
+    emojiCryptogram: null,
   };
 }
 
@@ -346,6 +356,7 @@ function mergeDeep(partial, deep) {
     activity:  deep.activity,
     quiz:      deep.quiz,
     curiosity: deep.curiosity,
+    emojiCryptogram: deep.emojiCryptogram || null,
   };
 }
 

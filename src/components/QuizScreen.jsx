@@ -30,7 +30,7 @@ export default function QuizScreen({ topic, onComplete, onHome, homeLabel = "Hom
         gradedCount: nextGradedCount,
         correctCount: nextCorrectCount,
         accuracy,
-        masteryAchieved: nextGradedCount > 0 && accuracy >= 0.8,
+        masteryAchieved: nextGradedCount > 0 && accuracy >= 0.75,
       });
     } else {
       setGradedCount(nextGradedCount);
@@ -182,8 +182,8 @@ export default function QuizScreen({ topic, onComplete, onHome, homeLabel = "Hom
           {isLastQuestion
             ? "✨ Reveal My Superpower!"
             : isCorrect
-            ? "Nice! Next →"
-            : "Keep going →"}
+            ? "Great answer! Next"
+            : "Keep Going"}
         </button>
       )}
     </div>

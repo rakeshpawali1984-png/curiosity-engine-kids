@@ -263,6 +263,10 @@ function buildTopicFromParts(question, fast, deep) {
       ],
     },
     quiz: normalizeQuiz(deep?.quiz, safeTitle),
+    emojiCryptogram:
+      typeof deep?.emojiCryptogram?.sentence === 'string' && deep.emojiCryptogram.sentence.trim()
+        ? { sentence: deep.emojiCryptogram.sentence.trim() }
+        : null,
     badge: String(fast?.badge || 'Curiosity Explorer 🦘').trim() || 'Curiosity Explorer 🦘',
   };
 }

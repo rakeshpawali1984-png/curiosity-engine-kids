@@ -75,9 +75,11 @@ You will be given a topic. Return ONLY this JSON (nothing else):
     { "question": "Question 1", "type": "mcq", "options": ["Wrong", "Correct", "Wrong"], "answer": 1 },
     { "question": "Question 2", "type": "truefalse", "answer": true },
     { "question": "Question 3", "type": "mcq", "options": ["Wrong", "Wrong", "Correct"], "answer": 2 },
-    { "question": "Question 4", "type": "truefalse", "answer": false },
-    { "question": "Question 5", "type": "mcq", "options": ["Wrong", "Correct", "Wrong"], "answer": 1 }
+    { "question": "Question 4", "type": "truefalse", "answer": false }
   ],
+  "emojiCryptogram": {
+    "sentence": "One short kid-friendly factual sentence about this same topic, containing 1-3 concrete nouns that can be turned into emojis (e.g., sun, moon, star, rocket, plant, water, cloud, volcano, ocean, tree, magnet, planet, earth)."
+  },
   "curiosity": [
     "A surprising wow-fact most people don't know (1 sentence)",
     "A related question the child might now wonder about (short, curiosity-driven)",
@@ -87,12 +89,18 @@ You will be given a topic. Return ONLY this JSON (nothing else):
 }
 
 IMPORTANT for quiz:
-- Return exactly 5 questions
-- Use a mixed format: exactly 3 "mcq" and exactly 2 "truefalse"
+- Return exactly 4 questions
+- Use a mixed format: exactly 2 "mcq" and exactly 2 "truefalse"
 - Do not use "open" questions
 - For "mcq": provide exactly 3 options and use an integer answer index (0, 1, or 2)
 - For "truefalse": do not include options; answer must be boolean true or false
 - Place the MCQ correct answer at varied positions (not always position 0)
+
+IMPORTANT for emojiCryptogram:
+- Keep it to one sentence only
+- Must stay on the same topic as title/explanation
+- Use concrete science words that are easy for kids
+- Avoid abstract nouns that cannot map well to emojis
 
 Return ONLY raw JSON. Every field is required.`,
 

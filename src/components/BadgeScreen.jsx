@@ -1,8 +1,27 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import confetti from "canvas-confetti";
 import { inferCuriositySuperpower } from "../lib/curiositySuperpowers";
+import SpeedTap from "./games/SpeedTap";
+import FlashFacts from "./games/FlashFacts";
+import EmojiCryptogram from "./games/EmojiCryptogram";
+
+function pickGame() {
+  try {
+    const last = sessionStorage.getItem("whyroo_last_game");
+    let next;
+    if (last === "speedtap") next = "flashfacts";
+    else if (last === "flashfacts") next = "emoji";
+    else next = "speedtap";
+    sessionStorage.setItem("whyroo_last_game", next);
+    return next;
+  } catch {
+    return "speedtap";
+  }
+}
 
 export default function BadgeScreen({ topic, quizResult = null, onHome, ctaLabel = "Try another adventure ✨" }) {
+  const [activeGame, setActiveGame] = useState(null);
+  const [gameUsed, setGameUsed] = useState(false);
   const superpower = inferCuriositySuperpower(
     [topic?.title, topic?.story, topic?.explanation, topic?.badge].filter(Boolean).join(" ")
   );
@@ -58,12 +77,45 @@ export default function BadgeScreen({ topic, quizResult = null, onHome, ctaLabel
         {superpower.summary}
       </p>
 
-      <button
-        onClick={onHome}
-        className="bg-purple-500 hover:bg-purple-600 hover:scale-105 active:scale-95 text-white font-black py-6 px-10 rounded-2xl text-xl transition-all shadow-md"
-      >
-        {ctaLabel}
-      </button>
+      <div className="flex flex-col gap-3 w-full max-w-xs">
+        <button
+          onClick={onHome}
+          className="bg-purple-500 hover:bg-purple-600 hover:scale-[1.02] active:scale-95 text-white font-black py-4 px-8 rounded-2xl text-lg transition-all shadow-md"
+        >
+          {ctaLabel}
+        </button>
+        <button
+          onClick={() => { if (!gameUsed) { setGameUsed(true); setActiveGame(pickGame()); } }}
+          disabled={gameUsed}
+          className={`font-bold py-3 px-5 rounded-2xl text-sm transition-all shadow-sm border-2 ${
+            gameUsed
+              ? "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed"
+              : "bg-white hover:bg-slate-50 border-purple-200 hover:border-purple-300 text-purple-700"
+          }`}
+        >
+          {gameUsed ? "🎮 Game played!" : "🎮 Play a Quick Game"}
+        </button>
+      </div>
+
+      {activeGame === "speedtap" && (
+        <SpeedTap
+          topicEmoji={topic?.emoji || "🦘"}
+          topicTitle={topic?.title || "this topic"}
+          onClose={() => setActiveGame(null)}
+        />
+      )}
+      {activeGame === "flashfacts" && (
+        <FlashFacts
+          topic={topic}
+          onClose={() => setActiveGame(null)}
+        />
+      )}
+      {activeGame === "emoji" && (
+        <EmojiCryptogram
+          topic={topic}
+          onClose={() => setActiveGame(null)}
+        />
+      )}
     </div>
   );
 }
