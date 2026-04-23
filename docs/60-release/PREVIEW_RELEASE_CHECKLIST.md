@@ -1,7 +1,7 @@
 # Preview Release Checklist
 
 - Owner: TBD
-- Last updated: 2026-04-16
+- Last updated: 2026-04-23
 - Status: active
 - Related docs:
 	[../50-ops/ENV_AND_DEPLOYMENT_RUNBOOK.md](../50-ops/ENV_AND_DEPLOYMENT_RUNBOOK.md),
@@ -45,6 +45,9 @@ Use this checklist before approving a preview build for merge.
 - [ ] Child profile selection opens child-mode correctly.
 - [ ] Classic mode progression works: Story -> Explanation -> Quiz -> Badge.
 - [ ] Curious mode progression works: Story -> Curiosity choice -> branch content.
+- [ ] Demo mode progression works: Story -> Explanation -> Activity -> Quiz -> Badge.
+- [ ] Demo quiz renders exactly 4 questions and excludes open/hint prompt flow.
+- [ ] Demo badge screen hides quick game CTA.
 - [ ] Progress/badge state is written once and is idempotent on refresh.
 - [ ] Exit child mode returns to safe parent-controlled route.
 

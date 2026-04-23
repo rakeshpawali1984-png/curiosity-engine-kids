@@ -1,7 +1,7 @@
 # Developer Guide
 
 - Owner: TBD
-- Last updated: 2026-04-13
+- Last updated: 2026-04-23
 - Status: active
 - Related docs:
 	[README.md](README.md),
@@ -65,6 +65,7 @@ Use when changing:
 2. route-to-screen branching
 3. parent gate + PIN flow orchestration
 4. active child state and cross-screen transitions
+5. demo mode topic/quiz normalization and restrictions
 
 ### Parent portal UI and flows
 
@@ -94,6 +95,26 @@ Use when changing:
 1. child learning sequence
 2. curious prompts and render behavior
 3. journey and badge presentation
+4. demo-only UX restrictions (quiz/game gating)
+
+## Demo mode constraints (current)
+
+Route:
+
+1. `/demo`
+
+Behavior contract:
+
+1. Demo cards are selected from static `src/data/topics.js`.
+2. Demo quiz must always render 4 questions.
+3. Demo quiz excludes `open` question type.
+4. Demo badge screen does not allow quick game entry.
+
+Primary code paths:
+
+1. `src/App.jsx` (topic normalization + demo flow)
+2. `src/components/QuizScreen.jsx` (quiz rendering)
+3. `src/components/BadgeScreen.jsx` (quick game CTA gating)
 
 ### Data access layer
 

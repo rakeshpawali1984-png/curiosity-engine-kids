@@ -19,7 +19,7 @@ function pickGame() {
   }
 }
 
-export default function BadgeScreen({ topic, quizResult = null, onHome, ctaLabel = "Try another adventure ✨" }) {
+export default function BadgeScreen({ topic, quizResult = null, onHome, ctaLabel = "Try another adventure ✨", demoMode = false }) {
   const [activeGame, setActiveGame] = useState(null);
   const [gameUsed, setGameUsed] = useState(false);
   const superpower = inferCuriositySuperpower(
@@ -84,33 +84,35 @@ export default function BadgeScreen({ topic, quizResult = null, onHome, ctaLabel
         >
           {ctaLabel}
         </button>
-        <button
-          onClick={() => { if (!gameUsed) { setGameUsed(true); setActiveGame(pickGame()); } }}
-          disabled={gameUsed}
-          className={`font-bold py-3 px-5 rounded-2xl text-sm transition-all shadow-sm border-2 ${
-            gameUsed
-              ? "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed"
-              : "bg-white hover:bg-slate-50 border-purple-200 hover:border-purple-300 text-purple-700"
-          }`}
-        >
-          {gameUsed ? "🎮 Game played!" : "🎮 Play a Quick Game"}
-        </button>
+        {!demoMode && (
+          <button
+            onClick={() => { if (!gameUsed) { setGameUsed(true); setActiveGame(pickGame()); } }}
+            disabled={gameUsed}
+            className={`font-bold py-3 px-5 rounded-2xl text-sm transition-all shadow-sm border-2 ${
+              gameUsed
+                ? "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed"
+                : "bg-white hover:bg-slate-50 border-purple-200 hover:border-purple-300 text-purple-700"
+            }`}
+          >
+            {gameUsed ? "🎮 Game played!" : "🎮 Play a Quick Game"}
+          </button>
+        )}
       </div>
 
-      {activeGame === "speedtap" && (
+      {!demoMode && activeGame === "speedtap" && (
         <SpeedTap
           topicEmoji={topic?.emoji || "🦘"}
           topicTitle={topic?.title || "this topic"}
           onClose={() => setActiveGame(null)}
         />
       )}
-      {activeGame === "flashfacts" && (
+      {!demoMode && activeGame === "flashfacts" && (
         <FlashFacts
           topic={topic}
           onClose={() => setActiveGame(null)}
         />
       )}
-      {activeGame === "emoji" && (
+      {!demoMode && activeGame === "emoji" && (
         <EmojiCryptogram
           topic={topic}
           onClose={() => setActiveGame(null)}

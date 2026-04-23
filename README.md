@@ -57,6 +57,13 @@ npm run dev:api
 - `npm run build` -> production build
 - `npm run preview` -> preview production build locally
 
+## Demo mode behavior
+
+- Demo route is `/demo`.
+- Demo topics use static content from `src/data/topics.js`.
+- Demo quiz is normalized to 4 non-open questions.
+- Demo badge screen disables quick game access.
+
 ## Where to read next
 
 - Developer onboarding and code map: [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md)

@@ -1,7 +1,7 @@
 # Child Journey Flow
 
 - Owner: TBD
-- Last updated: 2026-04-16
+- Last updated: 2026-04-23
 - Status: active
 - Related docs:
 	[../00-product/PRODUCT_OVERVIEW.md](../00-product/PRODUCT_OVERVIEW.md),
@@ -48,6 +48,27 @@ Data side effects:
 
 1. Topic selection logs a child search.
 2. Completing quiz awards child badge.
+
+## Demo mode flow (/demo)
+
+Purpose:
+
+1. provide a safe, deterministic preview experience
+2. avoid progression loops that bypass parent intent
+
+Current behavior:
+
+1. Topic cards are sourced from static `src/data/topics.js` content.
+2. Demo home shows a rotating subset of 4 static topics.
+3. Demo quiz is normalized to 4 questions per topic.
+4. Open-ended quiz items are excluded in demo mode (no hint/sample-answer prompt).
+5. Demo badge screen hides quick game CTA and game overlays.
+6. Demo completion CTA returns to demo topic selection flow.
+
+Implementation notes:
+
+1. Demo topic normalization is orchestrated in `src/App.jsx`.
+2. Demo game restrictions are enforced in `src/components/BadgeScreen.jsx`.
 
 ## Curious flow
 

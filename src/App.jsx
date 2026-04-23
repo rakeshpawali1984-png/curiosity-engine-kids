@@ -1304,9 +1304,21 @@ function MainApp({
   const demoLoadingTimerRef = useRef(null);
 
   const activePack = pack === "original" ? topics : topicsSpark;
+
+  const toDemoTopic = (topic) => {
+    if (!topic) return topic;
+    const quiz = Array.isArray(topic.quiz) ? topic.quiz : [];
+    const nonOpenQuiz = quiz.filter((item) => item?.type !== "open");
+    const demoQuiz = (nonOpenQuiz.length >= 4 ? nonOpenQuiz : quiz).slice(0, 4);
+    return {
+      ...topic,
+      quiz: demoQuiz,
+    };
+  };
+
   const visibleTopics = useMemo(() => {
     if (!demoMode) return activePack;
-    const shuffled = [...activePack].sort(() => Math.random() - 0.5);
+    const shuffled = [...topics].sort(() => Math.random() - 0.5);
     return shuffled.slice(0, 4);
   }, [activePack, demoMode]);
 
@@ -1330,7 +1342,7 @@ function MainApp({
 
   const startDemoFlowForTopic = (topic) => {
     clearDemoLoadingTimer();
-    setCurrentTopic(topic);
+    setCurrentTopic(toDemoTopic(topic));
     setQuizResult(null);
     setDemoLoadingMessage(DEMO_LOADING_MESSAGES[0]);
     setScreen("loading");
@@ -1424,7 +1436,11 @@ function MainApp({
         window.localStorage.setItem(DEMO_ASK_USED_KEY, "true");
       }
       setDemoAskQuestion("");
-      startDemoFlowForTopic(payload.topic);
+      const staticTopic =
+        topics.find((item) => item.id === payload.topic?.id) ||
+        topics.find((item) => item.title === payload.topic?.title) ||
+        topics[Math.floor(Math.random() * topics.length)];
+      startDemoFlowForTopic(staticTopic);
     } catch {
       setDemoAskError("Could not create this demo question right now.");
       setScreen("home");
@@ -1563,6 +1579,7 @@ function MainApp({
               topic={currentTopic}
               quizResult={quizResult}
               onHome={goHome}
+              demoMode={demoMode}
               ctaLabel={demoMode ? "Back to demo mode" : "Try another adventure ✨"}
             />
           )}

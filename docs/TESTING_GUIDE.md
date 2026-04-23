@@ -1,7 +1,7 @@
 # Testing Guide
 
 - Owner: TBD
-- Last updated: 2026-04-13
+- Last updated: 2026-04-23
 - Status: active
 - Related docs:
 	[DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md),
@@ -73,6 +73,13 @@ npm run dev
 
 4. Journey view:
 - displays child-specific badges and recent discoveries
+
+5. Demo mode (`/demo`):
+- home shows static topic cards sourced from `src/data/topics.js`
+- selected demo topic completes Story -> Explanation -> Activity -> Quiz -> Badge
+- quiz renders exactly 4 questions
+- open-ended hint/sample-answer prompt does not appear
+- badge screen does not show `Play a Quick Game`
 
 ## 4. API and cache validation
 
