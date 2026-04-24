@@ -9,6 +9,21 @@ const CACHE_SEMANTIC_ON_PATH = process.env.CACHE_SEMANTIC_ON_PATH === 'true';
 
 let pool;
 
+function sanitizeConnectionString(connectionString) {
+  if (!connectionString) return connectionString;
+  try {
+    const parsed = new URL(connectionString);
+    // These query params can make pg ignore/override the ssl object config.
+    parsed.searchParams.delete('sslmode');
+    parsed.searchParams.delete('sslcert');
+    parsed.searchParams.delete('sslkey');
+    parsed.searchParams.delete('sslrootcert');
+    return parsed.toString();
+  } catch {
+    return connectionString;
+  }
+}
+
 function nowMs() {
   return Date.now();
 }
@@ -27,9 +42,10 @@ function finishMetric(metrics, key, startedAt) {
 
 function getPool() {
   if (!pool) {
+    const connectionString = sanitizeConnectionString(DATABASE_URL);
     pool = new Pool({
-      connectionString: DATABASE_URL,
-      ssl: DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false },
+      connectionString,
+      ssl: connectionString?.includes('localhost') ? false : { rejectUnauthorized: false },
     });
   }
 
