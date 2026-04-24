@@ -36,7 +36,7 @@ export default function ChildProfilesScreen({
   const [history, setHistory] = useState([]);
   const [loadingData, setLoadingData] = useState(false);
   const [runningAction, setRunningAction] = useState(false);
-  const [expandProfiles, setExpandProfiles] = useState(true);
+  const [expandProfiles, setExpandProfiles] = useState(children.length === 0);
   const [expandSelected, setExpandSelected] = useState(true);
   const [expandAdd, setExpandAdd] = useState(children.length === 0);
   const [expandSecurity, setExpandSecurity] = useState(false);
@@ -50,6 +50,7 @@ export default function ChildProfilesScreen({
   const [billingActionLoading, setBillingActionLoading] = useState(false);
   const [billingError, setBillingError] = useState("");
   const [billingStatus, setBillingStatus] = useState(null);
+  const [expandSubscription, setExpandSubscription] = useState(false);
   const [expandDigest, setExpandDigest] = useState(false);
   const [digestLoading, setDigestLoading] = useState(false);
   const [digestSaving, setDigestSaving] = useState(false);
@@ -315,9 +316,15 @@ export default function ChildProfilesScreen({
   const superpowerSummary = summarizeCuriositySuperpowers(history);
   const dominantPower = superpowerSummary.dominant;
 
+  useEffect(() => {
+    if (isPastDue || billingError || billingFlowStatus === "success" || billingFlowStatus === "portal-return") {
+      setExpandSubscription(true);
+    }
+  }, [isPastDue, billingError, billingFlowStatus]);
+
   return (
     <div className="min-h-[100dvh] bg-gradient-to-br from-sky-100 via-purple-50 to-pink-100">
-      <div className="max-w-lg mx-auto min-h-[100dvh] px-4 py-6">
+      <div className="max-w-lg mx-auto min-h-[100dvh] px-4 py-4">
         <div className="mb-3 flex items-center justify-between">
           {activeChild && onDone ? (
             <button
@@ -345,7 +352,7 @@ export default function ChildProfilesScreen({
           </div>
         )}
 
-        <div className="bg-white rounded-3xl shadow-lg p-6 border border-purple-100 mb-5">
+        <div className="bg-white rounded-3xl shadow-lg p-5 border border-purple-100 mb-4">
           <button
             onClick={() => setExpandProfiles((v) => !v)}
             className="w-full flex items-center justify-between text-left"
@@ -354,45 +361,119 @@ export default function ChildProfilesScreen({
               <p className="text-xs font-bold uppercase tracking-widest text-purple-500 mb-1">
                 Family Profiles
               </p>
-              <h1 className="text-2xl font-black text-gray-800">Manage children</h1>
-              <p className="text-gray-500 text-sm mt-1">Signed in as {parent.email}</p>
+              <h1 className="text-xl font-black text-gray-800">Manage children</h1>
+              {expandProfiles && <p className="text-gray-500 text-sm mt-1">Signed in as {parent.email}</p>}
             </div>
-            <span className="text-purple-500 font-bold text-xl">{expandProfiles ? "−" : "+"}</span>
+            <span className="text-purple-500 font-bold text-lg">{expandProfiles ? "−" : "+"}</span>
           </button>
 
           {expandProfiles && (
-            children.length === 0 ? (
-              <p className="mt-4 text-sm text-amber-600 font-semibold">
-                Create the first child profile to continue.
-              </p>
-            ) : (
-              <div className="mt-4 grid grid-cols-1 gap-2">
-                {children.map((child) => {
-                  const selected = child.id === activeChildId;
-                  return (
-                    <button
-                      key={child.id}
-                      onClick={() => onSelectChild(child.id)}
-                      className={`w-full rounded-2xl border-2 px-4 py-3 text-left transition-all ${
-                        selected
-                          ? "border-purple-400 bg-purple-50"
-                          : "border-gray-200 hover:border-purple-300 bg-white"
-                      }`}
-                    >
-                      <p className="font-bold text-gray-800">
-                        {child.avatar_emoji || "🧠"} {child.name}
-                      </p>
-                      <p className="text-xs text-gray-500">Age range: {child.age_range || "6-8"}</p>
-                    </button>
-                  );
-                })}
+            <>
+              {children.length === 0 ? (
+                <p className="mt-4 text-sm text-amber-600 font-semibold">
+                  Create the first child profile to continue.
+                </p>
+              ) : (
+                <div className="mt-4 grid grid-cols-1 gap-2">
+                  {children.map((child) => {
+                    const selected = child.id === activeChildId;
+                    return (
+                      <button
+                        key={child.id}
+                        onClick={() => onSelectChild(child.id)}
+                        className={`w-full rounded-2xl border-2 px-4 py-3 text-left transition-all ${
+                          selected
+                            ? "border-purple-400 bg-purple-50"
+                            : "border-gray-200 hover:border-purple-300 bg-white"
+                        }`}
+                      >
+                        <p className="font-bold text-gray-800">
+                          {child.avatar_emoji || "🧠"} {child.name}
+                        </p>
+                        <p className="text-xs text-gray-500">Age range: {child.age_range || "6-8"}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="mt-4 pt-4 border-t border-green-100">
+                <button
+                  onClick={() => setExpandAdd((v) => !v)}
+                  className="w-full flex items-center justify-between"
+                >
+                  <div className="text-left">
+                    <p className="text-xs font-bold uppercase tracking-widest text-green-600 mb-2">
+                      Add Child Profile
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {expandAdd
+                        ? `You can create up to 3 child profiles. (${children.length}/3 used)`
+                        : `${children.length}/3 profiles used`}
+                    </p>
+                  </div>
+                  <span className="text-green-600 font-bold text-lg">{expandAdd ? "−" : "+"}</span>
+                </button>
+
+                {expandAdd && (
+                  <div className="mt-4">
+                    {!canCreate ? (
+                      <div className="rounded-2xl bg-yellow-50 border border-yellow-200 p-3 text-sm text-yellow-700 font-semibold">
+                        Max 3 profiles reached.
+                      </div>
+                    ) : (
+                      <>
+                        <input
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          placeholder="Child name"
+                          className="w-full rounded-2xl border-2 border-gray-200 focus:border-purple-400 px-4 py-3 outline-none mb-3"
+                        />
+
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          {AVATARS.map((emoji) => (
+                            <button
+                              key={emoji}
+                              onClick={() => setAvatar(emoji)}
+                              className={`w-10 h-10 rounded-xl border-2 text-xl ${
+                                avatar === emoji
+                                  ? "border-purple-400 bg-purple-50"
+                                  : "border-gray-200 bg-white"
+                              }`}
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+
+                        <select
+                          value={ageRange}
+                          onChange={(e) => setAgeRange(e.target.value)}
+                          className="w-full rounded-2xl border-2 border-gray-200 focus:border-purple-400 px-4 py-3 outline-none mb-3 bg-white"
+                        >
+                          <option value="4-5">4-5</option>
+                          <option value="6-8">6-8</option>
+                          <option value="9-12">9-12</option>
+                        </select>
+
+                        <button
+                          onClick={handleCreate}
+                          disabled={saving || !name.trim()}
+                          className="w-full rounded-2xl bg-green-500 hover:bg-green-600 disabled:bg-green-300 text-white font-bold py-3 transition-all active:scale-95"
+                        >
+                          {saving ? "Creating..." : "Create child profile"}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
-            )
+            </>
           )}
         </div>
 
         {activeChild && (
-          <div className="bg-white rounded-3xl shadow-lg p-6 border border-blue-100 mb-5">
+          <div className="bg-white rounded-3xl shadow-lg p-5 border border-blue-100 mb-4">
             <button
               onClick={() => setExpandSelected((v) => !v)}
               className="w-full flex items-center justify-between"
@@ -400,8 +481,17 @@ export default function ChildProfilesScreen({
               <p className="text-xs font-bold uppercase tracking-widest text-blue-600">
                 Selected Child: {activeChild.avatar_emoji || "🧠"} {activeChild.name}
               </p>
-              <span className="text-blue-500 font-bold text-xl">{expandSelected ? "−" : "+"}</span>
+              <span className="text-blue-500 font-bold text-lg">{expandSelected ? "−" : "+"}</span>
             </button>
+
+            {onDone && (
+              <button
+                onClick={onDone}
+                className="mt-2 text-sm font-semibold text-emerald-600 hover:text-emerald-700 transition-colors"
+              >
+                Go to Home as {activeChild.name}
+              </button>
+            )}
 
             {expandSelected && (
               <>
@@ -513,78 +603,8 @@ export default function ChildProfilesScreen({
           </div>
         )}
 
-        <div className="bg-white rounded-3xl shadow-lg p-6 border border-green-100 mb-5">
-          <button
-            onClick={() => setExpandAdd((v) => !v)}
-            className="w-full flex items-center justify-between"
-          >
-            <div className="text-left">
-              <p className="text-xs font-bold uppercase tracking-widest text-green-600 mb-2">
-                Add Child Profile
-              </p>
-              <p className="text-sm text-gray-500">
-                You can create up to 3 child profiles. ({children.length}/3 used)
-              </p>
-            </div>
-            <span className="text-green-600 font-bold text-xl">{expandAdd ? "−" : "+"}</span>
-          </button>
-
-          {expandAdd && (
-            <div className="mt-4">
-              {!canCreate ? (
-                <div className="rounded-2xl bg-yellow-50 border border-yellow-200 p-3 text-sm text-yellow-700 font-semibold">
-                  Max 3 profiles reached.
-                </div>
-              ) : (
-                <>
-                  <input
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Child name"
-                    className="w-full rounded-2xl border-2 border-gray-200 focus:border-purple-400 px-4 py-3 outline-none mb-3"
-                  />
-
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {AVATARS.map((emoji) => (
-                      <button
-                        key={emoji}
-                        onClick={() => setAvatar(emoji)}
-                        className={`w-10 h-10 rounded-xl border-2 text-xl ${
-                          avatar === emoji
-                            ? "border-purple-400 bg-purple-50"
-                            : "border-gray-200 bg-white"
-                        }`}
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-
-                  <select
-                    value={ageRange}
-                    onChange={(e) => setAgeRange(e.target.value)}
-                    className="w-full rounded-2xl border-2 border-gray-200 focus:border-purple-400 px-4 py-3 outline-none mb-3 bg-white"
-                  >
-                    <option value="4-5">4-5</option>
-                    <option value="6-8">6-8</option>
-                    <option value="9-12">9-12</option>
-                  </select>
-
-                  <button
-                    onClick={handleCreate}
-                    disabled={saving || !name.trim()}
-                    className="w-full rounded-2xl bg-green-500 hover:bg-green-600 disabled:bg-green-300 text-white font-bold py-3 transition-all active:scale-95"
-                  >
-                    {saving ? "Creating..." : "Create child profile"}
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-
         {onChangeParentPin && (
-          <div className="bg-white rounded-3xl shadow-lg p-6 border border-indigo-100 mb-5">
+          <div className="bg-white rounded-3xl shadow-lg p-5 border border-indigo-100 mb-4">
             <button
               onClick={() => setExpandSecurity((v) => !v)}
               className="w-full flex items-center justify-between"
@@ -593,9 +613,9 @@ export default function ChildProfilesScreen({
                 <p className="text-xs font-bold uppercase tracking-widest text-indigo-600 mb-2">
                   Parent Security
                 </p>
-                <p className="text-sm text-gray-500">Change your parent PIN</p>
+                <p className="text-sm text-gray-500">Parent PIN settings</p>
               </div>
-              <span className="text-indigo-600 font-bold text-xl">{expandSecurity ? "−" : "+"}</span>
+              <span className="text-indigo-600 font-bold text-lg">{expandSecurity ? "−" : "+"}</span>
             </button>
 
             {expandSecurity && (
@@ -652,83 +672,98 @@ export default function ChildProfilesScreen({
           </div>
         )}
 
-        <div className="bg-white rounded-3xl shadow-lg p-6 border border-emerald-100 mb-5">
-          <div className="flex items-center justify-between">
+        <div className="bg-white rounded-3xl shadow-lg p-5 border border-emerald-100 mb-4">
+          <button
+            onClick={() => setExpandSubscription((v) => !v)}
+            className="w-full flex items-center justify-between"
+          >
             <div className="text-left">
               <p className="text-xs font-bold uppercase tracking-widest text-emerald-600 mb-2">
                 Subscription
               </p>
               <p className="text-sm text-gray-500">
-                {isPaidPlan
-                  ? formattedCurrentPeriodEnd
-                    ? `Unlimited access is available through ${formattedCurrentPeriodEnd}`
-                    : "Whyroo Unlimited is active"
-                  : "Free plan: 5 curious questions per day"}
+                {expandSubscription
+                  ? (isPaidPlan
+                    ? formattedCurrentPeriodEnd
+                      ? `Unlimited access is available through ${formattedCurrentPeriodEnd}`
+                      : "Whyroo Unlimited is active"
+                    : "Free plan: 5 curious questions per day")
+                  : isPaidPlan
+                    ? "Unlimited plan"
+                    : `Free plan · ${usedToday}/${dailyLimit} used today`}
               </p>
             </div>
-            <button
-              onClick={refreshBillingStatus}
-              disabled={billingLoading || billingActionLoading}
-              className="text-xs font-semibold text-emerald-600 hover:text-emerald-800 disabled:text-emerald-300"
-            >
-              {billingLoading ? "Refreshing..." : "Refresh"}
-            </button>
-          </div>
+            <span className="text-emerald-600 font-bold text-lg">{expandSubscription ? "−" : "+"}</span>
+          </button>
 
-          <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
-            <p className="text-sm text-emerald-800 font-semibold mb-2">
-              Plan: {isPastDue ? "Unlimited (payment required)" : isPaidPlan ? "Unlimited ($6.99/month)" : "Free"}
-            </p>
-            {!isPaidPlan && (
-              <p className="text-sm text-emerald-700">
-                Usage today: {usedToday}/{dailyLimit} questions
-              </p>
-            )}
-            {isPaidPlan && !isPastDue && formattedCurrentPeriodEnd && (
-              <p className="text-sm text-emerald-700">
-                Current period ends: {formattedCurrentPeriodEnd}
-              </p>
-            )}
-            {showPortalReturnHint && (
-              <p className="text-xs text-emerald-700 mt-2">
-                If you scheduled cancellation, access remains active until the date above.
-              </p>
-            )}
-          </div>
+          {expandSubscription && (
+            <>
+              <div className="mt-3 flex justify-end">
+                <button
+                  onClick={refreshBillingStatus}
+                  disabled={billingLoading || billingActionLoading}
+                  className="text-xs font-semibold text-emerald-600 hover:text-emerald-800 disabled:text-emerald-300"
+                >
+                  {billingLoading ? "Refreshing..." : "Refresh"}
+                </button>
+              </div>
 
-          {isPastDue && (
-            <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-              <p className="text-sm font-semibold text-amber-800">⚠️ Payment failed</p>
-              <p className="text-xs text-amber-700 mt-1">Update your payment method to keep unlimited access. Stripe will retry automatically.</p>
-            </div>
+              <div className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+                <p className="text-sm text-emerald-800 font-semibold mb-2">
+                  Plan: {isPastDue ? "Unlimited (payment required)" : isPaidPlan ? "Unlimited ($6.99/month)" : "Free"}
+                </p>
+                {!isPaidPlan && (
+                  <p className="text-sm text-emerald-700">
+                    Usage today: {usedToday}/{dailyLimit} questions
+                  </p>
+                )}
+                {isPaidPlan && !isPastDue && formattedCurrentPeriodEnd && (
+                  <p className="text-sm text-emerald-700">
+                    Current period ends: {formattedCurrentPeriodEnd}
+                  </p>
+                )}
+                {showPortalReturnHint && (
+                  <p className="text-xs text-emerald-700 mt-2">
+                    If you scheduled cancellation, access remains active until the date above.
+                  </p>
+                )}
+              </div>
+
+              {isPastDue && (
+                <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                  <p className="text-sm font-semibold text-amber-800">⚠️ Payment failed</p>
+                  <p className="text-xs text-amber-700 mt-1">Update your payment method to keep unlimited access. Stripe will retry automatically.</p>
+                </div>
+              )}
+
+              {billingError && (
+                <p className="mt-3 text-sm text-red-600 font-semibold">{billingError}</p>
+              )}
+
+              <div className="mt-4">
+                {isPaidPlan ? (
+                  <button
+                    onClick={handleManageBilling}
+                    disabled={billingActionLoading}
+                    className="w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 text-white font-bold py-3 transition-all active:scale-95"
+                  >
+                    {billingActionLoading ? "Opening..." : isPastDue ? "Update Payment Method" : "Manage Billing"}
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleUpgrade}
+                    disabled={billingActionLoading}
+                    className="w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 text-white font-bold py-3 transition-all active:scale-95"
+                  >
+                    {billingActionLoading ? "Starting checkout..." : "Unlock Whyroo Unlimited — $6.99/month"}
+                  </button>
+                )}
+              </div>
+            </>
           )}
-
-          {billingError && (
-            <p className="mt-3 text-sm text-red-600 font-semibold">{billingError}</p>
-          )}
-
-          <div className="mt-4">
-            {isPaidPlan ? (
-              <button
-                onClick={handleManageBilling}
-                disabled={billingActionLoading}
-                className="w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 text-white font-bold py-3 transition-all active:scale-95"
-              >
-                {billingActionLoading ? "Opening..." : isPastDue ? "Update Payment Method" : "Manage Billing"}
-              </button>
-            ) : (
-              <button
-                onClick={handleUpgrade}
-                disabled={billingActionLoading}
-                className="w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 text-white font-bold py-3 transition-all active:scale-95"
-              >
-                {billingActionLoading ? "Starting checkout..." : "Unlock Whyroo Unlimited — $6.99/month"}
-              </button>
-            )}
-          </div>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-lg p-6 border border-sky-100 mb-5">
+        <div className="bg-white rounded-3xl shadow-lg p-5 border border-sky-100 mb-4">
           <button
             onClick={() => setExpandDigest((v) => !v)}
             className="w-full flex items-center justify-between"
@@ -737,9 +772,13 @@ export default function ChildProfilesScreen({
               <p className="text-xs font-bold uppercase tracking-widest text-sky-600 mb-2">
                 Daily Parent Summary
               </p>
-              <p className="text-sm text-gray-500">Get a daily email of what your kids explored + dinner table prompts.</p>
+              <p className="text-sm text-gray-500">
+                {expandDigest
+                  ? "Get a daily email of what your kids explored + dinner table prompts."
+                  : "Daily recap email settings"}
+              </p>
             </div>
-            <span className="text-sky-600 font-bold text-xl">{expandDigest ? "−" : "+"}</span>
+            <span className="text-sky-600 font-bold text-lg">{expandDigest ? "−" : "+"}</span>
           </button>
 
           {expandDigest && (
@@ -815,14 +854,6 @@ export default function ChildProfilesScreen({
           )}
         </div>
 
-        {activeChild && onDone && (
-          <button
-            onClick={onDone}
-            className="w-full rounded-2xl bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 transition-all active:scale-95"
-          >
-            Go to Home as {activeChild.name}
-          </button>
-        )}
       </div>
     </div>
   );
