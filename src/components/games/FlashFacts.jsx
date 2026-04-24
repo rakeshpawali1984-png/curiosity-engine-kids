@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import GameShell from "./GameShell";
 
 const FLASH_MS = 2000; // time fact is shown before buttons appear
@@ -147,6 +147,20 @@ export default function FlashFacts({ topic, onClose }) {
   const pct = Math.round((score / total) * 100);
   const msg = pct === 100 ? "You nailed it! 🏆" : pct >= 67 ? "Nice work! 🧠" : pct >= 34 ? "Good effort! 💪" : "Keep exploring! 🔍";
   const timerPct = Math.round((timeLeftMs / ANSWER_MS) * 100);
+  const answerOrder = useMemo(
+    () => (Math.random() < 0.5 ? [true, false] : [false, true]),
+    [index]
+  );
+
+  const getAnswerLabel = (value) => (value ? "True ✓" : "False ✗");
+  const getAnswerButtonClass = (value) =>
+    value
+      ? "flex-1 bg-emerald-100 hover:bg-emerald-200 border-2 border-emerald-300 text-emerald-800 font-black py-4 rounded-2xl text-base transition-all active:scale-95"
+      : "flex-1 bg-rose-100 hover:bg-rose-200 border-2 border-rose-200 text-rose-800 font-black py-4 rounded-2xl text-base transition-all active:scale-95";
+  const getAnswerDisabledClass = (value) =>
+    value
+      ? "flex-1 bg-emerald-100 border-2 border-emerald-300 text-emerald-800 font-black py-4 rounded-2xl text-base text-center"
+      : "flex-1 bg-rose-100 border-2 border-rose-200 text-rose-800 font-black py-4 rounded-2xl text-base text-center";
 
   return (
     <GameShell title="Flash Facts" emoji="🧠" onClose={onClose}>
@@ -217,25 +231,25 @@ export default function FlashFacts({ topic, onClose }) {
 
               {phase === "answering" && (
                 <div className="flex gap-3">
-                  <button
-                    onPointerDown={() => handleAnswer(true)}
-                    className="flex-1 bg-emerald-100 hover:bg-emerald-200 border-2 border-emerald-300 text-emerald-800 font-black py-4 rounded-2xl text-base transition-all active:scale-95"
-                  >
-                    True ✓
-                  </button>
-                  <button
-                    onPointerDown={() => handleAnswer(false)}
-                    className="flex-1 bg-rose-100 hover:bg-rose-200 border-2 border-rose-200 text-rose-800 font-black py-4 rounded-2xl text-base transition-all active:scale-95"
-                  >
-                    False ✗
-                  </button>
+                  {answerOrder.map((value) => (
+                    <button
+                      key={String(value)}
+                      onPointerDown={() => handleAnswer(value)}
+                      className={getAnswerButtonClass(value)}
+                    >
+                      {getAnswerLabel(value)}
+                    </button>
+                  ))}
                 </div>
               )}
 
               {phase === "feedback" && (
                 <div className="flex gap-3 opacity-40 pointer-events-none">
-                  <div className="flex-1 bg-emerald-100 border-2 border-emerald-300 text-emerald-800 font-black py-4 rounded-2xl text-base text-center">True ✓</div>
-                  <div className="flex-1 bg-rose-100 border-2 border-rose-200 text-rose-800 font-black py-4 rounded-2xl text-base text-center">False ✗</div>
+                  {answerOrder.map((value) => (
+                    <div key={String(value)} className={getAnswerDisabledClass(value)}>
+                      {getAnswerLabel(value)}
+                    </div>
+                  ))}
                 </div>
               )}
             </>

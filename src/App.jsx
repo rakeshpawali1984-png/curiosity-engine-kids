@@ -996,9 +996,6 @@ function LandingPage({
                 Explore demo →
               </a>
             </div>
-            <p className="mt-2 text-xs text-slate-400">
-              Want Ask Anything? Sign in with a grown-up.
-            </p>
           </div>
         </section>
 
