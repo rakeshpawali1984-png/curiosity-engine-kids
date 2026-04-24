@@ -1113,9 +1113,9 @@ function LandingPage({
             <div className="rounded-2xl border border-purple-200 bg-purple-50 p-5">
               <p className="text-sm uppercase tracking-wider font-extrabold text-purple-500 mb-2">Paid</p>
               <p className="text-lg font-bold text-slate-700 mb-1">Unlimited questions</p>
-              <p className="font-semibold text-slate-600">One subscription for all your kids</p>
+              <p className="font-semibold text-slate-600">One family subscription covers up to 3 child profiles</p>
               <p className="mt-3 text-2xl font-black text-purple-700">$6.99/month</p>
-              <p className="mt-1 text-xs text-slate-500">Less than a coffee per month ☕</p>
+              <p className="mt-1 text-xs text-slate-500">About the price of a coffee each month ☕</p>
             </div>
           </div>
           <div className="flex justify-center">
@@ -1188,7 +1188,7 @@ function LandingPage({
             </div>
 
             <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 mb-4">
-              <p className="text-sm font-semibold text-emerald-800">Unlimited questions for all your kids</p>
+              <p className="text-sm font-semibold text-emerald-800">Unlimited questions for up to 3 child profiles</p>
               <p className="text-xs text-emerald-700 mt-1">$6.99/month. Enter your parent PIN to continue to secure checkout.</p>
             </div>
 

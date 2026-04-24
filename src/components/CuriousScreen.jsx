@@ -1509,7 +1509,7 @@ export default function CuriousScreen({
               </div>
 
               <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 mb-4">
-                <p className="text-sm font-semibold text-emerald-800">Unlimited questions for all your kids</p>
+                <p className="text-sm font-semibold text-emerald-800">Unlimited questions for up to 3 child profiles</p>
                 <p className="text-xs text-emerald-700 mt-1">$6.99/month. Enter your parent PIN to continue to secure checkout.</p>
               </div>
 
