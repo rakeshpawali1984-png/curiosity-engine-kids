@@ -69,7 +69,9 @@ export default function App() {
   const [authReady, setAuthReady] = useState(false);
   const [familyReady, setFamilyReady] = useState(false);
   const [children, setChildren] = useState([]);
-  const [activeChildId, setActiveChildId] = useState(null);
+  const [activeChildId, setActiveChildId] = useState(
+    () => sessionStorage.getItem("activeChildId") || null
+  );
   const [landingSubscriptionStatus, setLandingSubscriptionStatus] = useState(null);
   const [landingSubscriptionLoading, setLandingSubscriptionLoading] = useState(false);
   const [showJourney, setShowJourney] = useState(false);
@@ -143,13 +145,26 @@ export default function App() {
     [children, activeChildId]
   );
 
+  const persistActiveChildId = (id) => {
+    if (id) {
+      sessionStorage.setItem("activeChildId", id);
+    } else {
+      sessionStorage.removeItem("activeChildId");
+    }
+    setActiveChildId(id);
+  };
+
+  const resolveActiveChildId = (rows, prev) => {
+    const storedId = sessionStorage.getItem("activeChildId");
+    if (storedId && rows.some((c) => c.id === storedId)) return storedId;
+    if (prev && rows.some((c) => c.id === prev)) return prev;
+    return rows[0]?.id || null;
+  };
+
   const refreshChildren = async (userId) => {
     const rows = await listChildProfiles(userId);
     setChildren(rows);
-    setActiveChildId((prev) => {
-      if (prev && rows.some((c) => c.id === prev)) return prev;
-      return rows[0]?.id || null;
-    });
+    setActiveChildId((prev) => resolveActiveChildId(rows, prev));
   };
 
   const syncFamilyData = async (nextSession) => {
@@ -167,10 +182,7 @@ export default function App() {
       setParentPinSalt(security?.parent_pin_salt || null);
       setParentSecurityReady(true);
       setChildren(rows);
-      setActiveChildId((prev) => {
-        if (prev && rows.some((c) => c.id === prev)) return prev;
-        return rows[0]?.id || null;
-      });
+      setActiveChildId((prev) => resolveActiveChildId(rows, prev));
     } catch (e) {
       console.error("Failed loading parent/children:", e.message);
       setParentPinHash(null);
@@ -234,7 +246,7 @@ export default function App() {
       setParentSecurityReady(false);
       if (!nextSession?.user) {
         setChildren([]);
-        setActiveChildId(null);
+        persistActiveChildId(null);
         setParentPinHash(null);
         setParentPinSalt(null);
         setFamilyReady(true);
@@ -726,7 +738,7 @@ export default function App() {
           parent={{ id: session.user.id, email: session.user.email }}
           children={children}
           activeChildId={activeChildId}
-          onSelectChild={(id) => setActiveChildId(id)}
+          onSelectChild={(id) => persistActiveChildId(id)}
           onChildrenUpdated={() => refreshChildren(session.user.id)}
           onChangeParentPin={changeParentPin}
           onSignOut={handleSignOut}

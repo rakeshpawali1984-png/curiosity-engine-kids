@@ -78,12 +78,6 @@ export default function BadgeScreen({ topic, quizResult = null, onHome, ctaLabel
       </p>
 
       <div className="flex flex-col gap-3 w-full max-w-xs">
-        <button
-          onClick={onHome}
-          className="bg-purple-500 hover:bg-purple-600 hover:scale-[1.02] active:scale-95 text-white font-black py-4 px-8 rounded-2xl text-lg transition-all shadow-md"
-        >
-          {ctaLabel}
-        </button>
         {!demoMode && (
           <button
             onClick={() => { if (!gameUsed) { setGameUsed(true); setActiveGame(pickGame()); } }}
@@ -97,6 +91,12 @@ export default function BadgeScreen({ topic, quizResult = null, onHome, ctaLabel
             {gameUsed ? "🎮 Game played!" : "🎮 Play a Quick Game"}
           </button>
         )}
+        <button
+          onClick={onHome}
+          className="bg-purple-500 hover:bg-purple-600 hover:scale-[1.02] active:scale-95 text-white font-black py-4 px-8 rounded-2xl text-lg transition-all shadow-md"
+        >
+          {ctaLabel}
+        </button>
       </div>
 
       {!demoMode && activeGame === "speedtap" && (
