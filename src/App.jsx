@@ -256,6 +256,7 @@ export default function App() {
         const isNewUser = createdAt && Date.now() - new Date(createdAt).getTime() < 60_000;
         if (isNewUser && !_welcomeEmailSent.has(user.id)) {
           _welcomeEmailSent.add(user.id);
+          trackEvent("user_signed_up", { provider: user.app_metadata?.provider || "unknown" });
           const name =
             user.user_metadata?.full_name ||
             user.user_metadata?.name ||
@@ -414,6 +415,7 @@ export default function App() {
     }
 
     sessionStorage.setItem(BILLING_RETURN_USER_KEY, session.user.id);
+    trackEvent("checkout_started", { source: "child_upgrade" });
 
     try {
       const { checkoutUrl } = await createCheckoutSession({ returnPath: "/app" });
@@ -431,6 +433,7 @@ export default function App() {
     }
 
     sessionStorage.setItem(BILLING_RETURN_USER_KEY, session.user.id);
+    trackEvent("checkout_started", { source: "landing_upgrade" });
 
     try {
       const { checkoutUrl } = await createCheckoutSession({ returnPath: "/parent" });

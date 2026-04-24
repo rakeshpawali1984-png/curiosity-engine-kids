@@ -1038,6 +1038,10 @@ export default function CuriousScreen({
           setErrorMsg("You used all your questions for today.");
           setQuotaResetAt(e?.payload?.resetAt || "");
           setScreen("error");
+          trackEvent("quota_reached", {
+            child_age_range: activeChild?.age_range || "unknown",
+            reset_at: e?.payload?.resetAt || "",
+          });
       } else if (e.message === "BLOCKED") {
         setScreen("blocked");
       } else {
