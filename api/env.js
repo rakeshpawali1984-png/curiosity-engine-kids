@@ -34,12 +34,18 @@ function loadLocalEnv() {
     candidates.push(path.join(dirPath, '.env'));
   };
 
-  // Search only the repo root and cwd — no unbounded walk up the filesystem tree.
-  pushEnvCandidates(repoRoot);
-  const cwd = path.resolve(process.cwd());
-  if (cwd !== path.resolve(repoRoot)) {
-    pushEnvCandidates(cwd);
-  }
+  const walkUpDirs = (startDir) => {
+    let current = path.resolve(startDir);
+    while (true) {
+      pushEnvCandidates(current);
+      const parent = path.dirname(current);
+      if (parent === current) break;
+      current = parent;
+    }
+  };
+
+  walkUpDirs(repoRoot);
+  walkUpDirs(process.cwd());
 
   for (const filePath of candidates) {
     try {

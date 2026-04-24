@@ -1,10 +1,8 @@
 import pg from 'pg';
-import { getEnvVar } from './env.js';
-import { resolveDbSslConfig } from './dbSsl.js';
 
 const { Pool } = pg;
 
-const DATABASE_URL = getEnvVar('DATABASE_POOLER_URL') || getEnvVar('DATABASE_URL');
+const DATABASE_URL = process.env.DATABASE_POOLER_URL || process.env.DATABASE_URL;
 
 let pool;
 
@@ -16,7 +14,7 @@ export function getPool() {
   if (!pool) {
     pool = new Pool({
       connectionString: DATABASE_URL,
-      ssl: resolveDbSslConfig(DATABASE_URL),
+      ssl: DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false },
     });
   }
 

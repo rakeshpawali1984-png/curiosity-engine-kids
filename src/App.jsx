@@ -76,7 +76,8 @@ export default function App() {
   const [landingSubscriptionLoading, setLandingSubscriptionLoading] = useState(false);
   const [showJourney, setShowJourney] = useState(false);
   const [parentPortalUnlocked, setParentPortalUnlocked] = useState(false);
-  const [parentPinIsSet, setParentPinIsSet] = useState(false);
+  const [parentPinHash, setParentPinHash] = useState(null);
+  const [parentPinSalt, setParentPinSalt] = useState(null);
   const [parentSecurityReady, setParentSecurityReady] = useState(false);
   const [parentPinFailedAttempts, setParentPinFailedAttempts] = useState(0);
   const [parentPinLockedUntil, setParentPinLockedUntil] = useState(0);
@@ -177,13 +178,15 @@ export default function App() {
         getParentSecurity(nextSession.user.id),
         listChildProfiles(nextSession.user.id),
       ]);
-      setParentPinIsSet(Boolean(security?.parent_pin_set_at));
+      setParentPinHash(security?.parent_pin_hash || null);
+      setParentPinSalt(security?.parent_pin_salt || null);
       setParentSecurityReady(true);
       setChildren(rows);
       setActiveChildId((prev) => resolveActiveChildId(rows, prev));
     } catch (e) {
       console.error("Failed loading parent/children:", e.message);
-      setParentPinIsSet(false);
+      setParentPinHash(null);
+      setParentPinSalt(null);
       setParentSecurityReady(true);
     } finally {
       setFamilyReady(true);
@@ -244,7 +247,8 @@ export default function App() {
       if (!nextSession?.user) {
         setChildren([]);
         persistActiveChildId(null);
-        setParentPinIsSet(false);
+        setParentPinHash(null);
+        setParentPinSalt(null);
         setFamilyReady(true);
         setParentSecurityReady(true);
         return;
@@ -378,33 +382,52 @@ export default function App() {
     navigateTo("/parent");
   };
 
-  // Calls the server-side verify endpoint. Hash/salt never leave the server.
-  const callVerifyPinApi = async (pinInput) => {
-    const headers = await getAuthHeaders();
-    const response = await fetch("/api/verify-pin", {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ pin: pinInput }),
-    });
-    const data = await response.json().catch(() => ({}));
-    return { ok: response.ok && data.ok === true, ...data };
-  };
-
   const verifyParentPin = async (pinInput) => {
-    if (!session?.user?.id) {
+    const userId = session?.user?.id;
+    if (!userId) {
       return { ok: false, error: "Session expired. Please sign in again." };
     }
 
-    const result = await callVerifyPinApi(pinInput);
-    if (result.ok) {
-      setParentPortalUnlocked(true);
-      setParentPinFailedAttempts(0);
-      setParentPinLockedUntil(0);
-    } else {
-      if (result.attemptsLeft !== undefined) setParentPinFailedAttempts(PARENT_PIN_MAX_ATTEMPTS - result.attemptsLeft);
-      if (result.lockedUntil) setParentPinLockedUntil(result.lockedUntil);
+    if (Date.now() < parentPinLockedUntil) {
+      return {
+        ok: false,
+        error: "Too many attempts. Please wait and try again.",
+        lockedUntil: parentPinLockedUntil,
+      };
     }
-    return result;
+
+    if (!parentPinHash || !parentPinSalt) {
+      return { ok: false, error: "Parent PIN is not set up yet." };
+    }
+    const pinHash = await hashPin(pinInput, parentPinSalt);
+    if (pinHash !== parentPinHash) {
+      const nextAttempts = parentPinFailedAttempts + 1;
+      if (nextAttempts >= PARENT_PIN_MAX_ATTEMPTS) {
+        const nextLock = Date.now() + PARENT_PIN_LOCK_MS;
+        setParentPinFailedAttempts(0);
+        setParentPinLockedUntil(nextLock);
+        writePinGuard(userId, 0, nextLock);
+        return {
+          ok: false,
+          error: "Too many attempts. Parent PIN is locked for 60 seconds.",
+          lockedUntil: nextLock,
+        };
+      }
+
+      setParentPinFailedAttempts(nextAttempts);
+      setParentPinLockedUntil(0);
+      writePinGuard(userId, nextAttempts, 0);
+      return {
+        ok: false,
+        error: `Incorrect PIN. ${PARENT_PIN_MAX_ATTEMPTS - nextAttempts} attempt(s) left.`,
+      };
+    }
+
+    setParentPortalUnlocked(true);
+    setParentPinFailedAttempts(0);
+    setParentPinLockedUntil(0);
+    clearPinGuard(userId);
+    return { ok: true };
   };
 
   const startChildUpgradeCheckout = async (pinInput) => {
@@ -445,7 +468,8 @@ export default function App() {
     const salt = createPinSalt();
     const pinHash = await hashPin(pinInput, salt);
     await setParentPinSecurity(session.user.id, pinHash, salt);
-    setParentPinIsSet(true);
+    setParentPinHash(pinHash);
+    setParentPinSalt(salt);
     setParentPortalUnlocked(true);
   };
 
@@ -453,21 +477,23 @@ export default function App() {
     if (!session?.user?.id) {
       return { ok: false, error: "Session expired. Please sign in again." };
     }
-    if (!parentPinIsSet) {
+    if (!parentPinHash || !parentPinSalt) {
       return { ok: false, error: "Parent PIN is not set up yet." };
     }
 
-    // Verify the current PIN server-side before allowing the change.
-    const verifyResult = await callVerifyPinApi(currentPinInput);
-    if (!verifyResult.ok) {
-      return { ok: false, error: verifyResult.error || "Current PIN is incorrect." };
+    const currentHash = await hashPin(currentPinInput, parentPinSalt);
+    if (currentHash !== parentPinHash) {
+      return { ok: false, error: "Current PIN is incorrect." };
     }
 
     const nextSalt = createPinSalt();
     const nextHash = await hashPin(newPinInput, nextSalt);
     await setParentPinSecurity(session.user.id, nextHash, nextSalt);
+    setParentPinHash(nextHash);
+    setParentPinSalt(nextSalt);
     setParentPinFailedAttempts(0);
     setParentPinLockedUntil(0);
+    clearPinGuard(session.user.id);
     return { ok: true };
   };
 
@@ -684,7 +710,7 @@ export default function App() {
       return <ParentGateLoadingScreen />;
     }
 
-    if (!parentPinIsSet) {
+    if (!parentPinHash || !parentPinSalt) {
       return (
         <ParentPinSetupScreen
           onCreatePin={createParentPin}
