@@ -1,11 +1,13 @@
 import pg from 'pg';
+import { getEnvVar } from './env.js';
+import { resolveDbSslConfig } from './dbSsl.js';
 
 const { Pool } = pg;
 
-const DATABASE_URL = process.env.DATABASE_POOLER_URL || process.env.DATABASE_URL;
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const CACHE_ENABLED = process.env.CACHE_ENABLED !== 'false';
-const CACHE_SEMANTIC_ON_PATH = process.env.CACHE_SEMANTIC_ON_PATH === 'true';
+const DATABASE_URL = getEnvVar('DATABASE_POOLER_URL') || getEnvVar('DATABASE_URL');
+const OPENAI_API_KEY = getEnvVar('OPENAI_API_KEY');
+const CACHE_ENABLED = getEnvVar('CACHE_ENABLED', 'true') !== 'false';
+const CACHE_SEMANTIC_ON_PATH = getEnvVar('CACHE_SEMANTIC_ON_PATH') === 'true';
 
 let pool;
 
@@ -29,7 +31,7 @@ function getPool() {
   if (!pool) {
     pool = new Pool({
       connectionString: DATABASE_URL,
-      ssl: DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false },
+      ssl: resolveDbSslConfig(DATABASE_URL),
     });
   }
 

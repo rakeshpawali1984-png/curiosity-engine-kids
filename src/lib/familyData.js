@@ -52,9 +52,11 @@ export async function listChildProfiles(parentId) {
 
 export async function getParentSecurity(parentId) {
   requireSupabase();
+  // Intentionally excludes parent_pin_hash and parent_pin_salt.
+  // Hash comparison is done server-side via /api/verify-pin to prevent client-side brute-force.
   const { data, error } = await supabase
     .from("parents")
-    .select("id, parent_pin_hash, parent_pin_salt, parent_pin_set_at")
+    .select("id, parent_pin_set_at")
     .eq("id", parentId)
     .single();
 
