@@ -10,8 +10,9 @@ import { logger } from './logger.js';
 
 const CACHE_ASYNC_STORE = (process.env.CACHE_ASYNC_STORE || '').trim() === 'true';
 const CACHE_READ_ENABLED = (process.env.CACHE_READ_ENABLED || '').trim() === 'true';
-const API_AUTH_ENABLED = (process.env.API_AUTH_ENABLED || '').trim() === 'true';
-const API_RATE_LIMIT_ENABLED = (process.env.API_RATE_LIMIT_ENABLED || '').trim() === 'true';
+// Auth and rate limiting are ON by default. Set to 'false' explicitly to disable (e.g. local dev).
+const API_AUTH_ENABLED = (process.env.API_AUTH_ENABLED || 'true').trim() !== 'false';
+const API_RATE_LIMIT_ENABLED = (process.env.API_RATE_LIMIT_ENABLED || 'true').trim() !== 'false';
 const API_RATE_LIMIT_WINDOW_MS = Number(process.env.API_RATE_LIMIT_WINDOW_MS || '60000');
 const API_RATE_LIMIT_MAX_REQUESTS = Number(process.env.API_RATE_LIMIT_MAX_REQUESTS || '30');
 const OPENAI_MAX_REQUEST_BYTES = Number(process.env.OPENAI_MAX_REQUEST_BYTES || '60000');
@@ -101,7 +102,9 @@ function normalizePromptType(value) {
 }
 
 function normalizeExperience(value) {
-  return String(value || 'generic').toLowerCase();
+  const allowed = new Set(['curious', 'generic']);
+  const normalized = String(value || 'generic').toLowerCase();
+  return allowed.has(normalized) ? normalized : 'generic';
 }
 
 function isValidQuestionId(value) {
