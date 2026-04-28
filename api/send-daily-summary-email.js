@@ -37,6 +37,17 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+function normalizeQuestionText(question) {
+  const raw = String(question || '').replace(/\s+/g, ' ').trim();
+  if (!raw) return '';
+
+  const withoutTrailingPunctuation = raw.replace(/[.?!]+$/g, '').trim();
+  if (!withoutTrailingPunctuation) return '';
+
+  const withCapitalizedLead = withoutTrailingPunctuation.charAt(0).toUpperCase() + withoutTrailingPunctuation.slice(1);
+  return `${withCapitalizedLead}?`;
+}
+
 function formatLocalDateLabel(localDate, timezone) {
   if (!localDate) return 'today';
 
@@ -138,7 +149,7 @@ function uniqueQuestions(rows, limit = 5) {
   const seen = new Set();
   const out = [];
   for (const row of rows) {
-    const q = String(row.query_text || '').trim();
+    const q = normalizeQuestionText(row.query_text);
     if (!q) continue;
     const key = q.toLowerCase();
     if (seen.has(key)) continue;
@@ -165,7 +176,7 @@ function buildChildSummaries(rows, limitPerChild = 3) {
     }
 
     const entry = byChild.get(key);
-    const q = String(row.query_text || '').trim();
+    const q = normalizeQuestionText(row.query_text);
     if (!q) continue;
     const qKey = q.toLowerCase();
     if (entry.seen.has(qKey)) continue;
@@ -210,7 +221,7 @@ function extractTopicHint(question) {
   }
 
   const clean = raw.replace(/[?!]+$/g, '').trim();
-  const parsed = clean.match(/^(why|how|what|when|where|who)\s+(do|does|did|is|are|can|could|would|should|will|has|have|had)?\s*(.+)$/i);
+  const parsed = clean.match(/^(why|how|what|when|where|who)\s+(does|do|did|is|are|can|could|would|should|will|have|has|had)?\s*(.+)$/i);
   const tail = parsed?.[3] ? parsed[3].trim() : clean;
   return tail.length > 60 ? `${tail.slice(0, 57).trim()}...` : tail;
 }
@@ -245,7 +256,7 @@ function buildCommonLayout(bodyHtml, localDate, timezone) {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Whyroo Daily Curiosity Summary</title>
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
 </head>
 <body style="margin:0;padding:0;background:#f3f0ff;font-family:'Nunito',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="padding:24px 0;">
@@ -278,110 +289,124 @@ function buildActiveUsageHtml({ parentName, childSummaries, inactiveChildNames, 
 
   const activeChildNames = childSummaries.map((entry) => entry.name);
   const primaryChildName = activeChildNames[0] || '';
-  const adventureLine =
-    activeChildNames.length > 0
-      ? `${escapeHtml(joinNames(activeChildNames))} went on a curiosity adventure today 🧠✨`
-      : 'Your child went on a curiosity adventure today 🧠✨';
+  const featuredTopicHint = childSummaries[0]?.questions?.[0]
+    ? extractTopicHint(childSummaries[0].questions[0])
+    : 'something new';
+  const primaryPrompt = safePrompts[0] || '';
 
-  const childSections = childSummaries.length > 0
+  const insightLine = primaryChildName
+    ? `${escapeHtml(primaryChildName)} was especially curious about ${escapeHtml(featuredTopicHint)} today.`
+    : 'Your child explored a thoughtful question today.';
+
+  // Per-child conversation starters
+  const perChildPrompts = childSummaries.map((entry) => {
+    const q = entry.questions?.[0] || '';
+    const p = q ? buildDinnerPrompts({ question: q, childName: '' }) : null;
+    return { name: escapeHtml(entry.name), prompt: p ? escapeHtml(p[0]) : '' };
+  }).filter((x) => x.prompt);
+
+  const multiChild = childSummaries.length > 1;
+
+  const askTonightBlock = multiChild
+    ? perChildPrompts.map(({ name, prompt }, i) =>
+        `${i > 0 ? '<div style="margin:0 0 16px;border-top:1px solid #f3f4f6;"></div>' : ''}
+              <p style="margin:0 0 6px;font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.06em;color:#9ca3af;">Ask <span style="color:#7c3aed;font-weight:900;font-size:13px;">${name}</span> tonight</p>
+              <p style="margin:0 0 20px;font-family:'Nunito',sans-serif;font-size:17px;line-height:1.45;color:#1f2937;font-weight:700;">${prompt}</p>`
+      ).join('')
+    : `<p style="margin:0 0 6px;font-family:'Nunito',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#9ca3af;text-transform:uppercase;">Ask this tonight</p>
+              <p style="margin:0 0 20px;font-family:'Nunito',sans-serif;font-size:19px;line-height:1.4;color:#1f2937;font-weight:800;">${primaryPrompt}</p>`;
+
+  // Build questions grouped by child
+  const questionLines = childSummaries.length > 1
     ? childSummaries.map((entry) => {
-        const safeName = escapeHtml(entry.name);
-        const safeQuestions = (entry.questions || []).map((q) => escapeHtml(q));
-        const questionList = safeQuestions.length > 0
-          ? safeQuestions.map((q) => `<li style="margin:0 0 8px;font-size:15px;line-height:1.5;">${q}</li>`).join('')
-          : '<li style="margin:0;font-size:15px;line-height:1.5;">A great curiosity question was explored today.</li>';
-
-        return `<div style="background:#faf5ff;border:1px solid #eadcff;border-radius:14px;padding:14px 16px;margin-bottom:12px;">
-                  <p style="margin:0 0 8px;font-size:14px;font-weight:800;color:#6d28d9;">${safeName}</p>
-                  <ul style="margin:0;padding-left:18px;color:#374151;">
-                    ${questionList}
-                  </ul>
-                </div>`;
+        const qs = (entry.questions || []);
+        if (!qs.length) return '';
+        const items = qs.map((q) =>
+          `<li style="margin:0 0 5px;font-family:'Nunito',sans-serif;font-size:14px;color:#374151;line-height:1.5;">${escapeHtml(q)}</li>`
+        ).join('');
+        return `<p style="margin:0 0 4px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;color:#7c3aed;">${escapeHtml(entry.name)}</p>
+              <ul style="margin:0 0 14px;padding-left:18px;">${items}</ul>`;
       }).join('')
-    : `<div style="background:#faf5ff;border:1px solid #eadcff;border-radius:14px;padding:14px 16px;margin-bottom:12px;">
-         <p style="margin:0;font-size:15px;line-height:1.5;color:#374151;">A great curiosity question was explored today.</p>
-       </div>`;
+    : (() => {
+        const qs = childSummaries[0]?.questions || [];
+        const items = qs.length
+          ? qs.map((q) => `<li style="margin:0 0 5px;font-family:'Nunito',sans-serif;font-size:14px;color:#374151;line-height:1.5;">${escapeHtml(q)}</li>`).join('')
+          : `<li style="margin:0;font-family:'Nunito',sans-serif;font-size:14px;color:#374151;">A great curiosity question was explored today.</li>`;
+        return `<ul style="margin:0;padding-left:18px;">${items}</ul>`;
+      })();
 
   const inactiveLine = inactiveChildNames.length > 0
-    ? `<p style="margin:0 0 16px;font-size:13px;color:#6b7280;">Also today: ${escapeHtml(joinNames(inactiveChildNames))} took a little Whyroo break 🙂</p>`
+    ? `<p style="margin:0 0 16px;font-size:13px;color:#9ca3af;">Also today: ${escapeHtml(joinNames(inactiveChildNames))} took a little Whyroo break 🙂</p>`
     : '';
-
-  const ctaLabel = primaryChildName
-    ? `Ask something new with ${primaryChildName} ->`
-    : 'Ask today\'s Why ->';
 
   const bodyHtml = `
           <tr>
-            <td style="padding:22px 24px;">
-              <p style="margin:0 0 14px;font-size:16px;color:#374151;">Hi ${safeParentName},</p>
-              <p style="margin:0 0 18px;font-size:16px;color:#4b5563;font-weight:700;">${adventureLine}</p>
+            <td style="padding:28px 28px 24px;">
+              <p style="margin:0 0 6px;font-size:15px;color:#6b7280;">Hi ${safeParentName},</p>
+              <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.5;">${insightLine}</p>
 
-              <p style="margin:0 0 10px;font-size:12px;font-weight:700;letter-spacing:0.06em;color:#7c3aed;text-transform:uppercase;">Top questions by child</p>
-              ${childSections}
-              ${inactiveLine}
+              ${askTonightBlock}
 
-              <div style="background:#f0f9ff;border:1px solid #cbeafe;border-radius:14px;padding:14px 16px;margin-bottom:16px;">
-                <p style="margin:0 0 10px;font-size:15px;color:#1f2937;font-weight:800;">Try one of these at dinner tonight 👇</p>
-                <ul style="margin:0;padding-left:18px;color:#1f2937;">
-                  ${safePrompts.map((q) => `<li style="margin:0 0 8px;font-size:15px;line-height:1.5;">${q}</li>`).join('')}
-                </ul>
-              </div>
-
-              <p style="margin:0 0 16px;font-size:14px;color:#4b5563;line-height:1.6;">Moments like these help build curiosity and confidence in thinking.</p>
-
-              <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:14px;padding:14px 16px;margin-bottom:16px;">
-                <p style="margin:0 0 6px;font-size:14px;font-weight:800;color:#9a3412;">🌟 Tomorrow's Big Why</p>
-                <p style="margin:0;font-size:18px;font-weight:800;color:#7c2d12;">${safeTomorrowBigWhy}</p>
-                <p style="margin:8px 0 0;font-size:14px;font-weight:700;color:#9a3412;">👉 Try this with your child tomorrow!</p>
-              </div>
-
-              <table cellpadding="0" cellspacing="0" style="margin:0 0 16px;">
+              <table cellpadding="0" cellspacing="0" style="margin:0 0 28px;">
                 <tr>
-                  <td style="background:#a855f7;border-radius:12px;text-align:center;box-shadow:0 4px 14px rgba(168,85,247,0.28);">
-                    <a href="${safeAppLink}" style="display:inline-block;padding:12px 18px;color:#ffffff;font-size:14px;font-weight:900;text-decoration:none;">${escapeHtml(ctaLabel)}</a>
+                  <td style="background:#7c3aed;border-radius:10px;">
+                    <a href="${safeAppLink}" style="display:inline-block;padding:13px 24px;color:#ffffff;font-size:15px;font-weight:900;text-decoration:none;">Open Whyroo →</a>
                   </td>
                 </tr>
               </table>
 
-              <p style="margin:0;font-size:13px;color:#6b7280;">You can change digest preferences in <a href="${safeParentPortalLink}" style="color:#7c3aed;text-decoration:none;font-weight:800;">Parent Portal</a>.</p>
+              <p style="margin:0 0 6px;font-size:13px;color:#9ca3af;">Takes 2 minutes at dinner, in the car, or before bed.</p>
+
+              <hr style="margin:24px 0;border:none;border-top:1px solid #f3f4f6;" />
+
+              <p style="margin:0 0 10px;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#9ca3af;text-transform:uppercase;">Questions explored today</p>
+              ${questionLines}
+              ${inactiveLine}
+
+              <hr style="margin:24px 0;border:none;border-top:1px solid #f3f4f6;" />
+
+              <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#9ca3af;text-transform:uppercase;">Tomorrow's 2-minute starter</p>
+              <p style="margin:0 0 20px;font-size:16px;font-weight:800;color:#374151;">${safeTomorrowBigWhy}</p>
+
+              <p style="margin:0;font-size:12px;color:#9ca3af;">Change digest preferences in <a href="${safeParentPortalLink}" style="color:#7c3aed;text-decoration:none;">Parent Portal</a>.</p>
             </td>
           </tr>`;
 
   return buildCommonLayout(bodyHtml, localDate, timezone);
 }
 
-function buildNoUsageHtml({ parentName, childNames, localDate, timezone, simplePrompt, demoLink }) {
+function buildNoUsageHtml({ parentName, childNames, localDate, timezone, simplePrompt, appLink }) {
   const safeParentName = escapeHtml(parentName || 'Parent');
   const safePrompt = escapeHtml(simplePrompt || 'Why do we yawn when someone else yawns?');
-  const safeDemoLink = escapeHtml(demoLink || 'https://whyroo.com/demo');
+  const safeAppLink = escapeHtml(appLink || 'https://whyroo.com/app');
   const safeParentPortalLink = escapeHtml(buildParentPortalLink());
   const childLabel = childNames.length > 0 ? childNames.map((name) => escapeHtml(name)).join(', ') : 'your child';
 
   const bodyHtml = `
           <tr>
-            <td style="padding:22px 24px;">
-              <p style="margin:0 0 14px;font-size:16px;color:#374151;">Hi ${safeParentName},</p>
-              <p style="margin:0 0 10px;font-size:16px;color:#4b5563;font-weight:700;">Looks like Whyroo took a break today 😊</p>
-              <p style="margin:0 0 16px;font-size:15px;color:#4b5563;line-height:1.6;">No worries - every day is a new chance for ${childLabel} to explore something interesting.</p>
+            <td style="padding:28px 28px 24px;">
+              <p style="margin:0 0 6px;font-size:15px;color:#6b7280;">Hi ${safeParentName},</p>
+              <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.5;">No Whyroo today — but here's an easy question to try with ${childLabel} tonight.</p>
 
-              <div style="background:#f0f9ff;border:1px solid #cbeafe;border-radius:14px;padding:14px 16px;margin-bottom:16px;">
-                <p style="margin:0 0 8px;font-size:14px;font-weight:800;color:#1d4ed8;">Try asking your child this today 👀</p>
-                <p style="margin:0;font-size:17px;font-weight:800;color:#1f2937;">${safePrompt}</p>
-              </div>
+              <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#9ca3af;text-transform:uppercase;">Try this tonight</p>
+              <p style="margin:0 0 20px;font-size:20px;line-height:1.4;color:#111827;font-weight:900;">${safePrompt}</p>
 
-              <div style="margin:0 0 14px;">
-                <a href="${safeDemoLink}" style="display:inline-block;background:#a855f7;color:#ffffff;text-decoration:none;padding:12px 16px;border-radius:12px;font-weight:800;font-size:14px;">Give it a quick try here (2 minutes is enough)</a>
-              </div>
+              <table cellpadding="0" cellspacing="0" style="margin:0 0 28px;">
+                <tr>
+                  <td style="background:#7c3aed;border-radius:10px;">
+                    <a href="${safeAppLink}" style="display:inline-block;padding:13px 24px;color:#ffffff;font-size:15px;font-weight:900;text-decoration:none;">Open Whyroo →</a>
+                  </td>
+                </tr>
+              </table>
 
-              <p style="margin:0 0 16px;font-size:14px;color:#4b5563;line-height:1.6;">Even one good question a day can spark great conversations.</p>
+              <p style="margin:0 0 24px;font-size:13px;color:#9ca3af;">Takes 2 minutes at dinner, in the car, or before bed.</p>
 
-              <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:14px;padding:14px 16px;margin-bottom:16px;">
-                <p style="margin:0 0 6px;font-size:14px;font-weight:800;color:#9a3412;">🌟 Tomorrow's Big Why</p>
-                <p style="margin:0;font-size:18px;font-weight:800;color:#7c2d12;">${escapeHtml(pickByDate(TOMORROW_BIG_WHY, localDate, 1))}</p>
-                <p style="margin:8px 0 0;font-size:14px;font-weight:700;color:#9a3412;">👉 Try this with your child tomorrow!</p>
-              </div>
+              <hr style="margin:0 0 24px;border:none;border-top:1px solid #f3f4f6;" />
 
-              <p style="margin:0;font-size:13px;color:#6b7280;">You can change digest preferences in <a href="${safeParentPortalLink}" style="color:#7c3aed;text-decoration:none;font-weight:800;">Parent Portal</a>.</p>
+              <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#9ca3af;text-transform:uppercase;">Tomorrow's 2-minute starter</p>
+              <p style="margin:0 0 24px;font-size:16px;font-weight:800;color:#374151;">${escapeHtml(pickByDate(TOMORROW_BIG_WHY, localDate, 1))}</p>
+
+              <p style="margin:0;font-size:12px;color:#9ca3af;">Change digest preferences in <a href="${safeParentPortalLink}" style="color:#7c3aed;text-decoration:none;">Parent Portal</a>.</p>
             </td>
           </tr>`;
 
@@ -473,7 +498,7 @@ export async function sendDailySummaryForParent({
     } else {
       const profileNames = Array.from(new Set(childProfiles.map((row) => row.name).filter(Boolean)));
       const prompt = pickByDate(NO_USAGE_PROMPTS, localDate);
-      const demoLink = buildDemoLink();
+      const appLink = buildAppLink();
 
       html = buildNoUsageHtml({
         parentName: parentDisplayName || String(parentEmail || '').split('@')[0],
@@ -481,7 +506,7 @@ export async function sendDailySummaryForParent({
         localDate,
         timezone: safeTimezone,
         simplePrompt: prompt,
-        demoLink,
+        appLink,
       });
     }
 
