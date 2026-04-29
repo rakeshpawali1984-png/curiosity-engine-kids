@@ -30,9 +30,16 @@ export default function LoginScreen() {
             Welcome to Whyroo
           </h1>
           <p className="text-gray-500 text-base mb-2">
-            Create child profiles and track their learning journey.
+            Sign in to unlock a world of curious questions for your child.
           </p>
           <p className="text-xs text-slate-400 mb-6">🔒 Your child's data stays private. We never sell it.</p>
+
+          <p className="text-xs text-slate-400 mb-4">
+            By continuing, you confirm you are a parent or guardian aged 18+ and agree to our{" "}
+            <a href="/terms" className="underline text-purple-500 hover:text-purple-700">Terms of Use</a>
+            {" "}and{" "}
+            <a href="/privacy" className="underline text-purple-500 hover:text-purple-700">Privacy Policy</a>.
+          </p>
 
           <button
             onClick={handleGoogleLogin}

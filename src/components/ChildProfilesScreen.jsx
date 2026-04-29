@@ -10,9 +10,16 @@ import {
   listChildBadges,
   listChildSearchHistory,
   sendDailySummaryEmailNow,
+  updateChildInterests,
   updateParentDigestSettings,
 } from "../lib/familyData";
 import { summarizeCuriositySuperpowers } from "../lib/curiositySuperpowers";
+import {
+  formatInterestLabel,
+  INTEREST_SUGGESTIONS,
+  MAX_CHILD_INTERESTS,
+  sanitizeInterests,
+} from "../data/interests";
 
 const AVATARS = ["🦊", "🐼", "🦄", "🧠", "🚀", "🌈", "🐙", "🦕"];
 const BILLING_RETURN_USER_KEY = "ce_billing_return_user";
@@ -31,6 +38,8 @@ export default function ChildProfilesScreen({
   const [avatar, setAvatar] = useState("🧠");
   const [ageRange, setAgeRange] = useState("6-8");
   const [saving, setSaving] = useState(false);
+  const [createInterests, setCreateInterests] = useState([]);
+  const [createCustomInterest, setCreateCustomInterest] = useState("");
   const [tab, setTab] = useState("badges");
   const [badges, setBadges] = useState([]);
   const [history, setHistory] = useState([]);
@@ -57,6 +66,11 @@ export default function ChildProfilesScreen({
   const [digestSending, setDigestSending] = useState(false);
   const [digestError, setDigestError] = useState("");
   const [digestMessage, setDigestMessage] = useState("");
+  const [selectedInterests, setSelectedInterests] = useState([]);
+  const [selectedCustomInterest, setSelectedCustomInterest] = useState("");
+  const [savingInterests, setSavingInterests] = useState(false);
+  const [interestsMessage, setInterestsMessage] = useState("");
+  const [interestsError, setInterestsError] = useState("");
   const [digestSettings, setDigestSettings] = useState({
     enabled: true,
     time: "18:30",
@@ -79,8 +93,11 @@ export default function ChildProfilesScreen({
         name: name.trim(),
         avatar_emoji: avatar,
         age_range: ageRange,
+        interests: createInterests,
       });
       setName("");
+      setCreateInterests([]);
+      setCreateCustomInterest("");
       setExpandAdd(false);
       await onChildrenUpdated();
     } catch (e) {
@@ -111,12 +128,57 @@ export default function ChildProfilesScreen({
     if (!activeChild) {
       setBadges([]);
       setHistory([]);
+      setSelectedInterests([]);
       return;
     }
     setExpandProfiles(false);
     setExpandSelected(true);
+    setSelectedInterests(sanitizeInterests(activeChild.interests || []));
+    setSelectedCustomInterest("");
+    setInterestsMessage("");
+    setInterestsError("");
     refreshChildData();
-  }, [activeChildId]);
+  }, [activeChildId, activeChild]);
+
+  const toggleInterest = (setInterests, currentInterests, interest) => {
+    const normalized = sanitizeInterests([interest])[0];
+    if (!normalized) return;
+    const hasIt = currentInterests.includes(normalized);
+    if (hasIt) {
+      setInterests(currentInterests.filter((x) => x !== normalized));
+      return;
+    }
+    if (currentInterests.length >= MAX_CHILD_INTERESTS) return;
+    setInterests(sanitizeInterests([...currentInterests, normalized]));
+  };
+
+  const addCustomInterest = (value, setInterests, currentInterests, clearInput) => {
+    const normalized = sanitizeInterests([value])[0];
+    if (!normalized) return;
+    if (currentInterests.includes(normalized)) {
+      clearInput("");
+      return;
+    }
+    if (currentInterests.length >= MAX_CHILD_INTERESTS) return;
+    setInterests(sanitizeInterests([...currentInterests, normalized]));
+    clearInput("");
+  };
+
+  const handleSaveSelectedInterests = async () => {
+    if (!activeChild || savingInterests) return;
+    setSavingInterests(true);
+    setInterestsMessage("");
+    setInterestsError("");
+    try {
+      await updateChildInterests(activeChild.id, selectedInterests);
+      await onChildrenUpdated();
+      setInterestsMessage("Interests updated.");
+    } catch (e) {
+      setInterestsError(e.message || "Could not update interests");
+    } finally {
+      setSavingInterests(false);
+    }
+  };
 
   const handleDeleteHistory = async () => {
     if (!activeChild || runningAction) return;
@@ -391,6 +453,11 @@ export default function ChildProfilesScreen({
                           {child.avatar_emoji || "🧠"} {child.name}
                         </p>
                         <p className="text-xs text-gray-500">Age range: {child.age_range || "6-8"}</p>
+                        {Array.isArray(child.interests) && child.interests.length > 0 && (
+                          <p className="text-xs text-purple-600 mt-1">
+                            Interests: {child.interests.map((i) => formatInterestLabel(i)).join(", ")}
+                          </p>
+                        )}
                       </button>
                     );
                   })}
@@ -456,6 +523,75 @@ export default function ChildProfilesScreen({
                           <option value="9-12">9-12</option>
                         </select>
 
+                        <div className="mb-3 rounded-2xl border border-purple-100 bg-purple-50 p-3">
+                          <p className="text-xs font-bold uppercase tracking-widest text-purple-600 mb-2">
+                            Interests (max {MAX_CHILD_INTERESTS})
+                          </p>
+                          <div className="flex flex-wrap gap-2 mb-2">
+                            {INTEREST_SUGGESTIONS.map((interest) => {
+                              const normalized = sanitizeInterests([interest])[0];
+                              const selected = createInterests.includes(normalized);
+                              const full = !selected && createInterests.length >= MAX_CHILD_INTERESTS;
+                              return (
+                                <button
+                                  key={interest}
+                                  type="button"
+                                  onClick={() => toggleInterest(setCreateInterests, createInterests, interest)}
+                                  disabled={full}
+                                  className={`rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors ${
+                                    selected
+                                      ? "bg-purple-600 border-purple-600 text-white"
+                                      : full
+                                        ? "bg-gray-100 border-gray-200 text-gray-400"
+                                        : "bg-white border-purple-200 text-purple-700 hover:bg-purple-100"
+                                  }`}
+                                >
+                                  {interest}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <div className="flex gap-2">
+                            <input
+                              value={createCustomInterest}
+                              onChange={(e) => setCreateCustomInterest(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  addCustomInterest(
+                                    createCustomInterest,
+                                    setCreateInterests,
+                                    createInterests,
+                                    setCreateCustomInterest
+                                  );
+                                }
+                              }}
+                              placeholder="Add custom interest (e.g. Chess)"
+                              className="flex-1 rounded-xl border border-purple-200 px-3 py-2 text-sm outline-none focus:border-purple-400"
+                            />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                addCustomInterest(
+                                  createCustomInterest,
+                                  setCreateInterests,
+                                  createInterests,
+                                  setCreateCustomInterest
+                                )
+                              }
+                              disabled={createInterests.length >= MAX_CHILD_INTERESTS}
+                              className="rounded-xl bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white text-sm font-semibold px-3"
+                            >
+                              Add
+                            </button>
+                          </div>
+                          {createInterests.length > 0 && (
+                            <p className="text-xs text-purple-700 mt-2">
+                              Selected: {createInterests.map((i) => formatInterestLabel(i)).join(", ")}
+                            </p>
+                          )}
+                        </div>
+
                         <button
                           onClick={handleCreate}
                           disabled={saving || !name.trim()}
@@ -502,6 +638,90 @@ export default function ChildProfilesScreen({
                     className="text-xs font-semibold text-blue-500 hover:text-blue-700 disabled:text-blue-300"
                   >
                     {loadingData ? "Refreshing..." : "Refresh"}
+                  </button>
+                </div>
+
+                <div className="mb-4 rounded-2xl border border-purple-100 bg-purple-50 p-3">
+                  <p className="text-xs font-bold uppercase tracking-widest text-purple-600 mb-2">
+                    Interests for {activeChild.name} (max {MAX_CHILD_INTERESTS})
+                  </p>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {INTEREST_SUGGESTIONS.map((interest) => {
+                      const normalized = sanitizeInterests([interest])[0];
+                      const selected = selectedInterests.includes(normalized);
+                      const full = !selected && selectedInterests.length >= MAX_CHILD_INTERESTS;
+                      return (
+                        <button
+                          key={interest}
+                          type="button"
+                          onClick={() => toggleInterest(setSelectedInterests, selectedInterests, interest)}
+                          disabled={full || savingInterests}
+                          className={`rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors ${
+                            selected
+                              ? "bg-purple-600 border-purple-600 text-white"
+                              : full
+                                ? "bg-gray-100 border-gray-200 text-gray-400"
+                                : "bg-white border-purple-200 text-purple-700 hover:bg-purple-100"
+                          }`}
+                        >
+                          {interest}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      value={selectedCustomInterest}
+                      onChange={(e) => setSelectedCustomInterest(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addCustomInterest(
+                            selectedCustomInterest,
+                            setSelectedInterests,
+                            selectedInterests,
+                            setSelectedCustomInterest
+                          );
+                        }
+                      }}
+                      placeholder="Add custom interest"
+                      className="flex-1 rounded-xl border border-purple-200 px-3 py-2 text-sm outline-none focus:border-purple-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        addCustomInterest(
+                          selectedCustomInterest,
+                          setSelectedInterests,
+                          selectedInterests,
+                          setSelectedCustomInterest
+                        )
+                      }
+                      disabled={savingInterests || selectedInterests.length >= MAX_CHILD_INTERESTS}
+                      className="rounded-xl bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white text-sm font-semibold px-3"
+                    >
+                      Add
+                    </button>
+                  </div>
+                  {selectedInterests.length > 0 && (
+                    <p className="text-xs text-purple-700 mt-2">
+                      Selected: {selectedInterests.map((i) => formatInterestLabel(i)).join(", ")}
+                    </p>
+                  )}
+                  {interestsError && <p className="text-xs text-red-600 mt-2 font-semibold">{interestsError}</p>}
+                  {interestsMessage && <p className="text-xs text-green-700 mt-2 font-semibold">{interestsMessage}</p>}
+                  <p className="text-xs text-gray-400 mt-3">
+                    We use your child's selected interests to personalise AI-generated questions and learning content. See our{" "}
+                    <a href="/privacy" className="underline text-purple-400 hover:text-purple-600">Privacy Policy</a>
+                    {" "}for details.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleSaveSelectedInterests}
+                    disabled={savingInterests}
+                    className="mt-3 rounded-xl bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white text-sm font-bold px-4 py-2"
+                  >
+                    {savingInterests ? "Saving..." : "Save interests"}
                   </button>
                 </div>
 

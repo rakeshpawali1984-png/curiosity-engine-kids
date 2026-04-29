@@ -1,14 +1,15 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import StoryScreen from "./StoryScreen";
 import ExplanationScreen from "./ExplanationScreen";
 import ActivityScreen from "./ActivityScreen";
 import QuizScreen from "./QuizScreen";
 import BadgeScreen from "./BadgeScreen";
 import FamilyTopBar from "./FamilyTopBar";
-import { getBillingStatus } from "../lib/familyData";
+import { getBillingStatus, getInterestQuestionSuggestions } from "../lib/familyData";
 import { hasSupabaseConfig, supabase } from "../lib/supabaseClient";
 import { incrementSessionQuestionsCount, trackEvent } from "../lib/analytics";
 import { logger } from "../lib/logger";
+import { formatInterestLabel, getInterestQuestionTriggers, hasCuratedInterestQuestions, normalizeInterest } from "../data/interests";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // LAYER 1 — INPUT GUARD (regex + l33tspeak normalisation)
@@ -72,10 +73,17 @@ const PROMPT_KEY_BOUNCER = "bouncer_system";
 
 const OPENAI_PROXY = "/api/spark";
 const PARENT_HINT_DISMISSED_KEY = "whyroo_parent_hint_dismissed";
+const INTEREST_EXPLORED_STORAGE_PREFIX = "whyroo_interest_explored_v1";
 const LOADING_STEP_MIN_MS = 1200;
 const LOADING_STEP_MAX_MS = 1800;
 const LONG_WAIT_FACT_DELAY_MS = 5000;
 const LONG_WAIT_FACT_PROBABILITY = 0.35;
+
+function toExploredQuestionKey(interest, question) {
+  const normalizedInterest = String(interest || "").trim().toLowerCase();
+  const normalizedQuestion = String(question || "").trim().toLowerCase();
+  return `${normalizedInterest}::${normalizedQuestion}`;
+}
 
 const LOADING_NARRATIVE = {
   intro: [
@@ -331,7 +339,8 @@ function parseBouncer(raw) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // Build a partial topic from the fast (Call A) response only — enough to render story+explanation
-function buildPartialTopic(fast, userQuery) {
+function buildPartialTopic(fast, userQuery, interestContext = null) {
+  const normalizedInterestContext = normalizeInterest(interestContext);
   return {
     id: "curious-" + Date.now(),
     title:       fast.title       || userQuery,
@@ -346,6 +355,7 @@ function buildPartialTopic(fast, userQuery) {
     quiz:        [],
     curiosity:   [],
     emojiCryptogram: null,
+    interestContext: normalizedInterestContext || null,
   };
 }
 
@@ -367,13 +377,20 @@ function mergeDeep(partial, deep) {
 // Returns { partial, deepPromise }
 // - partial resolves as soon as story+explanation are ready (~1.5s)
 // - deepPromise resolves with activity+quiz+curiosity while user reads
-async function runPipeline(query, onPhaseChange, questionId, ageRange) {
+async function runPipeline(query, onPhaseChange, questionId, ageRange, interestContext = null) {
   const t0 = performance.now();
-  logger.debug(`[WonderEngine] pipeline start — query="${query}" age=${ageRange || "unknown"}`);
+  const normalizedInterestContext = normalizeInterest(interestContext);
+  logger.debug(
+    `[WonderEngine] pipeline start — query="${query}" age=${ageRange || "unknown"} interest=${normalizedInterestContext || "none"}`
+  );
   onPhaseChange("creating");
 
   const agePrefix = ageRange ? `[Child age: ${ageRange}] ` : "";
+  const interestPrefix = normalizedInterestContext
+    ? `[Interest context: ${formatInterestLabel(normalizedInterestContext)}] `
+    : "";
   const ageContent = `${agePrefix}${query}`;
+  const deepContent = `${agePrefix}${interestPrefix}${query}`;
 
   // Fire all three calls simultaneously:
   //   Fast creator  (~150 tok) → story + explanation shown immediately
@@ -382,7 +399,7 @@ async function runPipeline(query, onPhaseChange, questionId, ageRange) {
   logger.debug("[WonderEngine] firing Fast + Deep + Bouncer in parallel");
 
   const fastPromise = callOpenAI(PROMPT_KEY_FAST, ageContent, 0.7, true, "fast", questionId).then(parseFast);
-  const deepPromise = callOpenAI(PROMPT_KEY_DEEP, ageContent, 0.7, true, "deep", questionId).then(parseDeep);
+  const deepPromise = callOpenAI(PROMPT_KEY_DEEP, deepContent, 0.7, true, "deep", questionId).then(parseDeep);
   const bouncerPromise = callOpenAI(PROMPT_KEY_BOUNCER, `User query for a kids learning app: "${query}"`, 0.1, false, "bouncer", questionId).then(parseBouncer);
   let bouncerStatus = "pending";
   bouncerPromise
@@ -858,9 +875,45 @@ export default function CuriousScreen({
   const [upgradeLoading, setUpgradeLoading] = useState(false);
   const [upgradeLockedUntil, setUpgradeLockedUntil] = useState(0);
   const [upgradeNowTs, setUpgradeNowTs] = useState(Date.now());
+  const [selectedInterestForModal, setSelectedInterestForModal] = useState(null);
+  const [selectedInterestExploreMode, setSelectedInterestExploreMode] = useState(null);
+  const [exploredInterestQuestionKeys, setExploredInterestQuestionKeys] = useState(new Set());
+  const [guidedInterestQuestionsByKey, setGuidedInterestQuestionsByKey] = useState({});
+  const [guidedInterestLoading, setGuidedInterestLoading] = useState(false);
+  const [guidedInterestError, setGuidedInterestError] = useState("");
+  const [initialInterestQuestionsByKey, setInitialInterestQuestionsByKey] = useState({});
+  const [initialInterestLoading, setInitialInterestLoading] = useState(false);
+  const [initialInterestError, setInitialInterestError] = useState("");
   const deepPromiseRef = useRef(null);
   const bouncerPromiseRef = useRef(null);
   const activeSearchIdRef = useRef(null);
+  const guidedInterestRequestIdRef = useRef(0);
+  const initialInterestRequestIdRef = useRef(0);
+  const interestTriggers = useMemo(
+    () => getInterestQuestionTriggers(activeChild?.interests || [], 10),
+    [activeChild?.interests]
+  );
+
+  // Get unique interests from activeChild
+  const uniqueInterests = useMemo(() => {
+    const interests = activeChild?.interests || [];
+    return Array.from(new Set(interests));
+  }, [activeChild?.interests]);
+
+  // Get questions for a specific interest
+  const getQuestionsForInterest = (interest) => {
+    return getInterestQuestionTriggers([interest], 10).map((item) => ({
+      ...item,
+      interest,
+    }));
+  };
+
+  const closeInterestModal = () => {
+    setSelectedInterestForModal(null);
+    setSelectedInterestExploreMode(null);
+    setGuidedInterestError("");
+    setInitialInterestError("");
+  };
 
   const refreshBillingStatus = async ({ silent = false } = {}) => {
     if (!silent) {
@@ -891,6 +944,92 @@ export default function CuriousScreen({
       setShowParentHint(true);
     }
   }, []);
+
+  useEffect(() => {
+    const childId = activeChild?.id;
+    if (!childId) {
+      setExploredInterestQuestionKeys(new Set());
+      return;
+    }
+
+    try {
+      const stored = sessionStorage.getItem(`${INTEREST_EXPLORED_STORAGE_PREFIX}:${childId}`);
+      const parsed = stored ? JSON.parse(stored) : [];
+      if (Array.isArray(parsed)) {
+        setExploredInterestQuestionKeys(new Set(parsed.filter((item) => typeof item === "string")));
+      } else {
+        setExploredInterestQuestionKeys(new Set());
+      }
+    } catch {
+      setExploredInterestQuestionKeys(new Set());
+    }
+  }, [activeChild?.id]);
+
+  useEffect(() => {
+    const childId = activeChild?.id;
+    if (!childId) return;
+
+    try {
+      sessionStorage.setItem(
+        `${INTEREST_EXPLORED_STORAGE_PREFIX}:${childId}`,
+        JSON.stringify(Array.from(exploredInterestQuestionKeys))
+      );
+    } catch {
+      // Ignore storage write failures (private mode / storage disabled).
+    }
+  }, [activeChild?.id, exploredInterestQuestionKeys]);
+
+  // Background-preload initial questions for custom interests (no curated local bank)
+  // so the modal opens instantly without a loading spinner.
+  useEffect(() => {
+    const childId = activeChild?.id;
+    const interests = activeChild?.interests || [];
+    if (!childId || !interests.length) return;
+
+    const customInterests = interests.filter(
+      (interest) => !hasCuratedInterestQuestions(normalizeInterest(interest))
+    );
+    if (!customInterests.length) return;
+
+    for (const interest of customInterests) {
+      const normalizedInterest = normalizeInterest(interest);
+      const key = `${childId}:${normalizedInterest}:initial_picks`;
+
+      // Skip if already loaded into state
+      setInitialInterestQuestionsByKey((prev) => {
+        if (prev[key]?.length) return prev; // already cached — no re-fetch
+
+        // Fire-and-forget: fetch silently without touching loading state
+        getInterestQuestionSuggestions({
+          childId,
+          interest,
+          category: "initial_picks",
+          explored: [],
+        })
+          .then((payload) => {
+            const questions = Array.isArray(payload?.questions)
+              ? payload.questions
+                  .map((q, i) => ({
+                    id: `${normalizedInterest}-initial_picks-api-${i + 1}`,
+                    interest: normalizedInterest,
+                    question: String(q || "").trim(),
+                  }))
+                  .filter((item) => item.question)
+              : [];
+            if (questions.length) {
+              setInitialInterestQuestionsByKey((p) =>
+                p[key]?.length ? p : { ...p, [key]: questions }
+              );
+            }
+          })
+          .catch(() => {
+            // Silently ignore — modal will fetch on demand if this fails
+          });
+
+        return prev; // state unchanged for now; setter above will update it
+      });
+    }
+  }, [activeChild?.id, activeChild?.interests]);
 
   useEffect(() => {
     if (upgradeLockedUntil <= Date.now()) return undefined;
@@ -955,7 +1094,8 @@ export default function CuriousScreen({
     activeSearchIdRef.current = null;
   };
 
-  const triggerSearch = async (query) => {
+  const triggerSearch = async (query, { interestContext = null } = {}) => {
+    const normalizedInterestContext = normalizeInterest(interestContext);
     if (!query || !isInputSafe(query)) {
       setScreen("blocked");
       return;
@@ -1004,8 +1144,14 @@ export default function CuriousScreen({
       const tPipelineStart = performance.now();
       // bouncerPromise is already resolved (SAFE) by the time runPipeline returns.
       // Content is only shown after the bouncer has cleared it — no post-paint check needed.
-      const { partial, deepPromise, bouncerPromise } = await runPipeline(query, () => {}, questionId, activeChild?.age_range);
-      const partialTopic = buildPartialTopic(partial, query);
+      const { partial, deepPromise, bouncerPromise } = await runPipeline(
+        query,
+        () => {},
+        questionId,
+        activeChild?.age_range,
+        normalizedInterestContext
+      );
+      const partialTopic = buildPartialTopic(partial, query, normalizedInterestContext);
       setTopic(partialTopic);
       setScreen("story");
       trackEvent("answer_viewed", {
@@ -1053,7 +1199,232 @@ export default function CuriousScreen({
     }
   };
 
-  const handleSubmit = () => triggerSearch(input.trim());
+  const handleSubmit = () => triggerSearch(input.trim(), { interestContext: null });
+
+  const handleInterestTrigger = (question, interest) => {
+    const exploredKey = toExploredQuestionKey(interest, question);
+    setExploredInterestQuestionKeys((prev) => {
+      const next = new Set(prev);
+      next.add(exploredKey);
+      return next;
+    });
+
+    trackEvent("interest_trigger_selected", {
+      interest: String(interest || "").slice(0, 40),
+      child_age_range: activeChild?.age_range || "unknown",
+      source: "curious_screen",
+    });
+    setInput(question);
+    closeInterestModal();
+    triggerSearch(question, { interestContext: interest });
+  };
+
+  const handleInterestDeepDive = (interest) => {
+    const interestLabel = formatInterestLabel(interest);
+    trackEvent("interest_deep_dive_selected", {
+      interest: String(interest || "").slice(0, 40),
+      child_age_range: activeChild?.age_range || "unknown",
+      source: "curious_screen",
+    });
+    closeInterestModal();
+    setInput(`What else about ${interestLabel.toLowerCase()} is interesting?`);
+    goAsk();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const getInterestExploreOptions = (interest) => {
+    const interestLabel = formatInterestLabel(interest);
+    return [
+      {
+        id: "more_questions",
+        label: `More ${interestLabel} questions`,
+      },
+      {
+        id: "how_it_works",
+        label: `How ${interestLabel} works`,
+      },
+      {
+        id: "amazing_facts",
+        label: `Amazing ${interestLabel} facts`,
+      },
+      {
+        id: "next_level",
+        label: `${interestLabel} next level`,
+      },
+    ];
+  };
+
+  const getInterestQuestionsKey = (interest, category) => {
+    const normalizedInterest = normalizeInterest(interest);
+    const normalizedCategory = String(category || "").trim().toLowerCase();
+    return `${activeChild?.id || "no-child"}:${normalizedInterest}:${normalizedCategory}`;
+  };
+
+  const listExploredInterestQuestions = (interest) => {
+    const normalizedInterest = normalizeInterest(interest);
+    if (!normalizedInterest) return [];
+
+    const prefix = `${normalizedInterest}::`;
+    const out = [];
+    for (const key of exploredInterestQuestionKeys) {
+      if (!String(key).startsWith(prefix)) continue;
+      const question = String(key).slice(prefix.length).trim();
+      if (!question) continue;
+      out.push(question);
+      if (out.length >= 20) break;
+    }
+    return out;
+  };
+
+  const selectedInterestHasCuratedQuestions = hasCuratedInterestQuestions(selectedInterestForModal);
+
+  const currentInterestExploreOption = selectedInterestExploreMode
+    ? getInterestExploreOptions(selectedInterestForModal).find((option) => option.id === selectedInterestExploreMode) || null
+    : null;
+
+  const currentGuidedInterestKey = selectedInterestExploreMode
+    ? getInterestQuestionsKey(selectedInterestForModal, selectedInterestExploreMode)
+    : null;
+
+  const currentInitialInterestKey = selectedInterestForModal
+    ? getInterestQuestionsKey(selectedInterestForModal, "initial_picks")
+    : null;
+
+  const displayedInterestQuestions = useMemo(() => {
+    if (!selectedInterestForModal) return [];
+    if (selectedInterestExploreMode) {
+      return guidedInterestQuestionsByKey[currentGuidedInterestKey] || [];
+    }
+    if (selectedInterestHasCuratedQuestions) {
+      return getQuestionsForInterest(selectedInterestForModal);
+    }
+    return initialInterestQuestionsByKey[currentInitialInterestKey] || [];
+  }, [
+    currentGuidedInterestKey,
+    currentInitialInterestKey,
+    guidedInterestQuestionsByKey,
+    initialInterestQuestionsByKey,
+    selectedInterestExploreMode,
+    selectedInterestForModal,
+    selectedInterestHasCuratedQuestions,
+  ]);
+
+  const loadGuidedInterestQuestions = async (interest, category) => {
+    const key = getInterestQuestionsKey(interest, category);
+    if (guidedInterestQuestionsByKey[key]?.length) return;
+
+    const requestId = guidedInterestRequestIdRef.current + 1;
+    guidedInterestRequestIdRef.current = requestId;
+    setGuidedInterestError("");
+    setGuidedInterestLoading(true);
+
+    try {
+      const payload = await getInterestQuestionSuggestions({
+        childId: activeChild?.id,
+        interest,
+        category,
+        explored: listExploredInterestQuestions(interest),
+      });
+
+      const normalizedInterest = normalizeInterest(interest);
+      const questions = Array.isArray(payload?.questions)
+        ? payload.questions
+            .map((question, index) => ({
+              id: `${normalizedInterest}-${category}-api-${index + 1}`,
+              interest: normalizedInterest,
+              question: String(question || "").trim(),
+            }))
+            .filter((item) => item.question)
+        : [];
+
+      if (guidedInterestRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      setGuidedInterestQuestionsByKey((prev) => ({
+        ...prev,
+        [key]: questions,
+      }));
+    } catch (error) {
+      if (guidedInterestRequestIdRef.current !== requestId) {
+        return;
+      }
+      setGuidedInterestError(error?.message || "Could not load more questions right now.");
+    } finally {
+      if (guidedInterestRequestIdRef.current === requestId) {
+        setGuidedInterestLoading(false);
+      }
+    }
+  };
+
+  const loadInitialInterestQuestions = async (interest) => {
+    const key = getInterestQuestionsKey(interest, "initial_picks");
+    if (initialInterestQuestionsByKey[key]?.length) return;
+
+    const requestId = initialInterestRequestIdRef.current + 1;
+    initialInterestRequestIdRef.current = requestId;
+    setInitialInterestError("");
+    setInitialInterestLoading(true);
+
+    try {
+      const payload = await getInterestQuestionSuggestions({
+        childId: activeChild?.id,
+        interest,
+        category: "initial_picks",
+        explored: listExploredInterestQuestions(interest),
+      });
+
+      const normalizedInterest = normalizeInterest(interest);
+      const questions = Array.isArray(payload?.questions)
+        ? payload.questions
+            .map((question, index) => ({
+              id: `${normalizedInterest}-initial_picks-api-${index + 1}`,
+              interest: normalizedInterest,
+              question: String(question || "").trim(),
+            }))
+            .filter((item) => item.question)
+        : [];
+
+      if (initialInterestRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      setInitialInterestQuestionsByKey((prev) => ({
+        ...prev,
+        [key]: questions,
+      }));
+    } catch (error) {
+      if (initialInterestRequestIdRef.current !== requestId) {
+        return;
+      }
+      setInitialInterestError(error?.message || "Could not load questions for this interest right now.");
+    } finally {
+      if (initialInterestRequestIdRef.current === requestId) {
+        setInitialInterestLoading(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!selectedInterestForModal) return;
+    if (selectedInterestExploreMode) return;
+    if (selectedInterestHasCuratedQuestions) return;
+    loadInitialInterestQuestions(selectedInterestForModal);
+  }, [selectedInterestExploreMode, selectedInterestForModal, selectedInterestHasCuratedQuestions]);
+
+  const handleInterestExploreOption = async (interest, option) => {
+    trackEvent("interest_guided_explore_selected", {
+      interest: String(interest || "").slice(0, 40),
+      option_id: option?.id || "unknown",
+      child_age_range: activeChild?.age_range || "unknown",
+      source: "curious_screen",
+    });
+
+    const category = option?.id || null;
+    setSelectedInterestExploreMode(category);
+    if (!category) return;
+    await loadGuidedInterestQuestions(interest, category);
+  };
 
   const buildMasteryBadgeTitle = (topicData) => `${topicData?.title || "Adventure"} Mastery ⭐`;
 
@@ -1094,7 +1465,7 @@ export default function CuriousScreen({
       source: "curiosity_hook",
     });
     setInput(question);
-    triggerSearch(question);
+    triggerSearch(question, { interestContext: topic?.interestContext || null });
   };
 
   const isPaidPlan = billingStatus?.subscriptionStatus === "active" || billingStatus?.subscriptionStatus === "past_due";
@@ -1394,7 +1765,190 @@ export default function CuriousScreen({
           </div>
         )}
 
+        {/* Interest chips — below search */}
+        {screen === "ask" && uniqueInterests.length > 0 && (
+          <div className="mb-6 rounded-2xl border border-indigo-100 bg-indigo-50 p-4">
+            <p className="text-xs font-bold uppercase tracking-widest text-indigo-600 mb-3">
+              For {activeChild?.name || "your child"}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {uniqueInterests.map((interest) => (
+                <button
+                  key={interest}
+                  type="button"
+                  onClick={() => {
+                    setSelectedInterestExploreMode(null);
+                    setGuidedInterestError("");
+                    setInitialInterestError("");
+                    setSelectedInterestForModal(interest);
+                  }}
+                  className="px-4 py-2 rounded-full bg-white border-2 border-indigo-300 hover:border-indigo-500 hover:bg-indigo-100 text-sm font-semibold text-indigo-600 transition-colors"
+                >
+                  {formatInterestLabel(interest)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Inspiration chips — only shown on ask screen */}
+        {selectedInterestForModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-purple-950/30 backdrop-blur-sm p-4">
+            <div className="max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden rounded-[2rem] border border-purple-100 bg-gradient-to-b from-white via-purple-50/70 to-white shadow-[0_24px_80px_rgba(109,40,217,0.22)]">
+              {/* Modal Header */}
+              <div className="flex items-start justify-between bg-gradient-to-r from-purple-50 via-white to-indigo-50 px-6 py-5 border-b border-purple-100">
+                <div className="pr-4">
+                  <p className="text-[11px] font-black uppercase tracking-[0.25em] text-purple-400">
+                    Curiosity Picks
+                  </p>
+                  <h2 className="mt-1 text-2xl font-black text-purple-700">
+                    {formatInterestLabel(selectedInterestForModal)}
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    Kids who love {formatInterestLabel(selectedInterestForModal).toLowerCase()} usually find these really interesting.
+                  </p>
+                </div>
+                <button
+                  onClick={closeInterestModal}
+                  className="flex h-11 w-11 items-center justify-center rounded-full border border-purple-100 bg-white/90 text-2xl text-purple-300 shadow-sm transition-all hover:border-purple-200 hover:text-purple-500 hover:shadow-md"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Modal Content - Questions List */}
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-3 bg-white/70">
+                {selectedInterestExploreMode && currentInterestExploreOption && (
+                  <div className="rounded-2xl border border-purple-100 bg-white/90 px-4 py-3 shadow-sm">
+                    <p className="text-sm font-bold text-purple-700">{currentInterestExploreOption.label}</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      Here are a few more question paths you can explore without leaving {formatInterestLabel(selectedInterestForModal).toLowerCase()}.
+                    </p>
+                  </div>
+                )}
+
+                {((selectedInterestExploreMode && guidedInterestLoading) || (!selectedInterestExploreMode && !selectedInterestHasCuratedQuestions && initialInterestLoading))
+                  && displayedInterestQuestions.length === 0 && (
+                  <div className="space-y-3">
+                    <div className="rounded-2xl border border-purple-100 bg-white/90 px-4 py-4 shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <span className="inline-block animate-bounce-3s text-2xl">🦘</span>
+                        <div>
+                          <p className="text-sm font-bold text-purple-700">Roo is finding fresh questions...</p>
+                          <p className="text-xs text-slate-500">Hang tight, this should just take a moment.</p>
+                        </div>
+                      </div>
+                    </div>
+                    {[1, 2].map((value) => (
+                      <div
+                        key={value}
+                        className="h-14 animate-pulse rounded-2xl border-2 border-purple-100 bg-gradient-to-r from-purple-50 to-indigo-50"
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {((selectedInterestExploreMode && guidedInterestError) || (!selectedInterestExploreMode && !selectedInterestHasCuratedQuestions && initialInterestError))
+                  && displayedInterestQuestions.length === 0 && (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 shadow-sm">
+                    <p className="text-sm font-semibold text-amber-800">
+                      {selectedInterestExploreMode ? guidedInterestError : initialInterestError}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!selectedInterestForModal) return;
+                        if (selectedInterestExploreMode) {
+                          loadGuidedInterestQuestions(selectedInterestForModal, selectedInterestExploreMode);
+                          return;
+                        }
+                        loadInitialInterestQuestions(selectedInterestForModal);
+                      }}
+                      className="mt-2 text-xs font-bold uppercase tracking-wide text-amber-700 hover:text-amber-900"
+                    >
+                      Try again
+                    </button>
+                  </div>
+                )}
+
+                {displayedInterestQuestions.map((item) => {
+                  const explored = exploredInterestQuestionKeys.has(
+                    toExploredQuestionKey(item.interest, item.question)
+                  );
+
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => handleInterestTrigger(item.question, item.interest)}
+                      className={`w-full text-left rounded-2xl border-2 px-4 py-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.99] ${
+                        explored
+                          ? "border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 hover:border-amber-300"
+                          : "border-purple-100 bg-gradient-to-r from-purple-50 to-indigo-50 hover:border-purple-300 hover:from-white hover:to-purple-50"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-semibold text-slate-700 leading-snug">{item.question}</p>
+                        {explored && (
+                          <span className="mt-0.5 shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">
+                            Explored
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Modal Footer — compact, questions-first */}
+              <div className="border-t border-purple-100 bg-gradient-to-b from-purple-50 to-white px-5 py-4 rounded-b-[2rem]">
+                {/* Go deeper row */}
+                {!selectedInterestExploreMode && (
+                  <div className="mb-3">
+                    <p className="text-[11px] font-black uppercase tracking-widest text-purple-400 mb-2">
+                      Keep exploring
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {getInterestExploreOptions(selectedInterestForModal).map((option) => (
+                        <button
+                          key={option.id}
+                          onClick={() => handleInterestExploreOption(selectedInterestForModal, option)}
+                          className="rounded-full border border-purple-200 bg-white px-3 py-1.5 text-xs font-semibold text-purple-600 shadow-sm transition-all hover:border-purple-400 hover:bg-purple-50 active:scale-[0.97]"
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {selectedInterestExploreMode && (
+                  <button
+                    onClick={() => setSelectedInterestExploreMode(null)}
+                    className="mb-3 flex items-center gap-1 text-xs font-semibold text-purple-500 hover:text-purple-700 transition-colors"
+                  >
+                    ← Back to {formatInterestLabel(selectedInterestForModal)} picks
+                  </button>
+                )}
+                {/* Primary + dismiss row */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleInterestDeepDive(selectedInterestForModal)}
+                    className="flex-1 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-500 py-2.5 text-sm text-white font-bold shadow-md shadow-purple-200 transition-all hover:from-purple-700 hover:to-indigo-600 active:scale-[0.99]"
+                  >
+                    Ask my own question
+                  </button>
+                  <button
+                    onClick={closeInterestModal}
+                    className="rounded-2xl border border-purple-100 bg-white px-4 py-2.5 text-sm text-purple-500 font-semibold transition-all hover:border-purple-200 hover:bg-purple-50"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Suggestion chips — only shown on ask screen */}
         {screen === "ask" && (
           <div className="mb-6">
             <p className="text-center text-xs font-bold text-purple-400 uppercase tracking-widest mb-3">✨ Try one of these</p>

@@ -1,5 +1,23 @@
 import { supabase } from "./supabaseClient";
 
+const MAX_CHILD_INTERESTS = 5;
+
+function normalizeInterests(values) {
+  const input = Array.isArray(values) ? values : [];
+  const out = [];
+  const seen = new Set();
+
+  for (const value of input) {
+    const normalized = String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
+    if (!normalized || normalized.length > 40 || seen.has(normalized)) continue;
+    out.push(normalized);
+    seen.add(normalized);
+    if (out.length >= MAX_CHILD_INTERESTS) break;
+  }
+
+  return out;
+}
+
 function requireSupabase() {
   if (!supabase) {
     throw new Error("Missing SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY in .env.local");
@@ -42,7 +60,7 @@ export async function listChildProfiles(parentId) {
   requireSupabase();
   const { data, error } = await supabase
     .from("child_profiles")
-    .select("id, parent_id, name, avatar_emoji, age_range, created_at")
+    .select("id, parent_id, name, avatar_emoji, age_range, interests, created_at")
     .eq("parent_id", parentId)
     .order("created_at", { ascending: true });
 
@@ -87,8 +105,9 @@ export async function createChildProfile(parentId, payload) {
       name: payload.name,
       avatar_emoji: payload.avatar_emoji || "🧠",
       age_range: payload.age_range || "6-8",
+      interests: normalizeInterests(payload.interests),
     })
-    .select("id, parent_id, name, avatar_emoji, age_range, created_at")
+    .select("id, parent_id, name, avatar_emoji, age_range, interests, created_at")
     .single();
 
   if (error) throw error;
@@ -199,6 +218,19 @@ export async function deleteChildProfile(childId) {
     .eq("id", childId);
 
   if (error) throw error;
+}
+
+export async function updateChildInterests(childId, interests) {
+  requireSupabase();
+  const { data, error } = await supabase
+    .from("child_profiles")
+    .update({ interests: normalizeInterests(interests) })
+    .eq("id", childId)
+    .select("id, parent_id, name, avatar_emoji, age_range, interests, created_at")
+    .single();
+
+  if (error) throw error;
+  return data;
 }
 
 async function getAuthHeaders() {
@@ -312,6 +344,26 @@ export async function sendDailySummaryEmailNow() {
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(payload?.error || "Could not send daily summary");
+  }
+
+  return payload;
+}
+
+export async function getInterestQuestionSuggestions({ childId, interest, category, explored = [] }) {
+  const headers = await getAuthHeaders();
+  const response = await fetch("/api/interest-questions", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ childId, interest, category, explored }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.error || "Could not load interest questions");
+  }
+
+  if (!Array.isArray(payload?.questions)) {
+    throw new Error("Interest questions payload missing");
   }
 
   return payload;

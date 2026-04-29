@@ -102,6 +102,12 @@ IMPORTANT for emojiCryptogram:
 - Use concrete science words that are easy for kids
 - Avoid abstract nouns that cannot map well to emojis
 
+INTEREST CONTEXT RULES:
+- If the input includes [Interest context: X], keep ALL deep outputs grounded in X, especially curiosity[1] and curiosity[2]
+- For example, with [Interest context: Cricket], follow-up questions must stay about cricket mechanics, strategy, skills, or observations
+- Do not drift into unrelated domains unless needed for a very short analogy
+- Keep follow-up questions naturally connected to the child's query while remaining in the interest context
+
 Return ONLY raw JSON. Every field is required.`,
 
   bouncer_system: `You are a children's safety reviewer aligned with 2026 standards including Australia eSafety guidelines.
