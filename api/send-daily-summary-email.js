@@ -226,15 +226,105 @@ function extractTopicHint(question) {
   return tail.length > 60 ? `${tail.slice(0, 57).trim()}...` : tail;
 }
 
-function buildDinnerPrompts({ question, childName }) {
-  const topicHint = extractTopicHint(question);
-  const nameSuffix = childName ? `, ${childName}` : '';
-
-  return [
-    `What surprised you most about ${topicHint}${nameSuffix}?`,
-    `How would you explain ${topicHint} in your own words${nameSuffix}?`,
-    `Did you notice anything like ${topicHint} in real life today${nameSuffix}?`,
+function inferTopicLabel(question) {
+  const lower = String(question || '').toLowerCase();
+  const mappings = [
+    ['dinosaur', 'dinosaurs'],
+    ['cricket', 'sports'],
+    ['tennis', 'sports'],
+    ['football', 'sports'],
+    ['basketball', 'sports'],
+    ['swim', 'sports'],
+    ['star', 'space'],
+    ['moon', 'space'],
+    ['rocket', 'space'],
+    ['ocean', 'nature'],
+    ['animal', 'animals'],
+    ['bird', 'nature'],
+    ['rainbow', 'nature'],
+    ['lightning', 'how things work'],
+    ['dream', 'how things work'],
+    ['yawn', 'how things work'],
+    ['hiccup', 'how things work'],
+    ['onion', 'how things work'],
   ];
+
+  for (const [keyword, label] of mappings) {
+    if (lower.includes(keyword)) return label;
+  }
+
+  return 'how things work';
+}
+
+function getFamilyTopicLabels(rows, limit = 3) {
+  const labels = [];
+  const seen = new Set();
+
+  for (const row of rows) {
+    const q = normalizeQuestionText(row?.query_text);
+    if (!q) continue;
+    const label = inferTopicLabel(q);
+    if (!label || seen.has(label)) continue;
+    seen.add(label);
+    labels.push(label);
+    if (labels.length >= limit) break;
+  }
+
+  return labels;
+}
+
+function summarizeFamilyContext(topicLabels) {
+  const labels = Array.isArray(topicLabels) ? topicLabels : [];
+
+  if (labels.length === 0) {
+    return "Your kids explored big why-questions today.";
+  }
+  if (labels.length === 1) {
+    return `Your kids explored ${labels[0]} today.`;
+  }
+  if (labels.length === 2) {
+    return `Your kids explored ${labels[0]} and ${labels[1]} today.`;
+  }
+  return `Your kids explored ${labels[0]}, ${labels[1]}, and ${labels[2]} today.`;
+}
+
+function buildSharedDinnerQuestion(topicLabels) {
+  const labels = Array.isArray(topicLabels) ? topicLabels : [];
+  const primary = labels[0] || '';
+
+  if (labels.includes('space') && labels.includes('how things work')) {
+    return 'What surprised you most about space today, and what clue helped you understand it?';
+  }
+
+  if (labels.includes('sports') && labels.includes('how things work')) {
+    return 'What surprised you most in sport today, and what clue helped you understand it?';
+  }
+
+  if (primary === 'space') {
+    return 'What surprised you most about space today, and what clue helped you understand it?';
+  }
+
+  if (primary === 'sports') {
+    return 'What surprised you most in sport today, and what clue helped you understand it?';
+  }
+
+  if (primary === 'dinosaurs') {
+    return 'What surprised you most about dinosaurs today, and what clue helped you understand it?';
+  }
+
+  if (primary === 'nature' || primary === 'animals') {
+    return 'What surprised you most about nature today, and what clue helped you understand it?';
+  }
+
+  if (primary === 'how things work') {
+    return 'What did you learn today that made you say, "Oh, that makes sense now"?';
+  }
+
+  return 'What surprised you most today, and what clue helped you understand it?';
+}
+
+function buildHookLine() {
+  return "Most kids think it is guesswork, until they notice the clues and patterns behind it.";
 }
 
 function buildCommonHeader(localDate, timezone) {
@@ -280,41 +370,15 @@ function buildCommonLayout(bodyHtml, localDate, timezone) {
 </html>`;
 }
 
-function buildActiveUsageHtml({ parentName, childSummaries, inactiveChildNames, localDate, timezone, prompts, tomorrowBigWhy }) {
+function buildActiveUsageHtml({ parentName, childSummaries, inactiveChildNames, localDate, timezone, contextLine, askTonightQuestion, hookLine, effortLine, personalizationLine, tomorrowBigWhy }) {
   const safeParentName = escapeHtml(parentName || 'Parent');
-  const safePrompts = prompts.map((p) => escapeHtml(p));
+  const safeContextLine = escapeHtml(contextLine || 'Your kids explored great questions today.');
+  const safeAskTonightQuestion = escapeHtml(askTonightQuestion || 'What surprised you most about what you learned today?');
+  const safeHookLine = escapeHtml(hookLine || 'Most kids think it is guesswork, until they spot the patterns behind it.');
+  const safeEffortLine = escapeHtml(effortLine || 'Takes 2 minutes, at dinner, in the car, or before bed.');
+  const safePersonalizationLine = escapeHtml(personalizationLine || '');
   const safeTomorrowBigWhy = escapeHtml(tomorrowBigWhy || 'Why do we dream?');
   const safeParentPortalLink = escapeHtml(buildParentPortalLink());
-  const safeAppLink = escapeHtml(buildAppLink());
-
-  const activeChildNames = childSummaries.map((entry) => entry.name);
-  const primaryChildName = activeChildNames[0] || '';
-  const featuredTopicHint = childSummaries[0]?.questions?.[0]
-    ? extractTopicHint(childSummaries[0].questions[0])
-    : 'something new';
-  const primaryPrompt = safePrompts[0] || '';
-
-  const insightLine = primaryChildName
-    ? `${escapeHtml(primaryChildName)} was especially curious about ${escapeHtml(featuredTopicHint)} today.`
-    : 'Your child explored a thoughtful question today.';
-
-  // Per-child conversation starters
-  const perChildPrompts = childSummaries.map((entry) => {
-    const q = entry.questions?.[0] || '';
-    const p = q ? buildDinnerPrompts({ question: q, childName: '' }) : null;
-    return { name: escapeHtml(entry.name), prompt: p ? escapeHtml(p[0]) : '' };
-  }).filter((x) => x.prompt);
-
-  const multiChild = childSummaries.length > 1;
-
-  const askTonightBlock = multiChild
-    ? perChildPrompts.map(({ name, prompt }, i) =>
-        `${i > 0 ? '<div style="margin:0 0 16px;border-top:1px solid #f3f4f6;"></div>' : ''}
-              <p style="margin:0 0 6px;font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.06em;color:#9ca3af;">Ask <span style="color:#7c3aed;font-weight:900;font-size:13px;">${name}</span> tonight</p>
-              <p style="margin:0 0 20px;font-family:'Nunito',sans-serif;font-size:17px;line-height:1.45;color:#1f2937;font-weight:700;">${prompt}</p>`
-      ).join('')
-    : `<p style="margin:0 0 6px;font-family:'Nunito',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#9ca3af;text-transform:uppercase;">Ask this tonight</p>
-              <p style="margin:0 0 20px;font-family:'Nunito',sans-serif;font-size:19px;line-height:1.4;color:#1f2937;font-weight:800;">${primaryPrompt}</p>`;
 
   // Build questions grouped by child
   const questionLines = childSummaries.length > 1
@@ -343,19 +407,14 @@ function buildActiveUsageHtml({ parentName, childSummaries, inactiveChildNames, 
           <tr>
             <td style="padding:28px 28px 24px;">
               <p style="margin:0 0 6px;font-size:15px;color:#6b7280;">Hi ${safeParentName},</p>
-              <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.5;">${insightLine}</p>
+              <p style="margin:0 0 18px;font-size:15px;color:#374151;line-height:1.5;">${safeContextLine}</p>
 
-              ${askTonightBlock}
+              <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#9ca3af;text-transform:uppercase;">Try this at dinner tonight</p>
+              <p style="margin:0 0 14px;font-size:19px;line-height:1.4;color:#111827;font-weight:900;">${safeAskTonightQuestion}</p>
 
-              <table cellpadding="0" cellspacing="0" style="margin:0 0 28px;">
-                <tr>
-                  <td style="background:#7c3aed;border-radius:10px;">
-                    <a href="${safeAppLink}" style="display:inline-block;padding:13px 24px;color:#ffffff;font-size:15px;font-weight:900;text-decoration:none;">Open Whyroo →</a>
-                  </td>
-                </tr>
-              </table>
-
-              <p style="margin:0 0 6px;font-size:13px;color:#9ca3af;">Takes 2 minutes at dinner, in the car, or before bed.</p>
+              <p style="margin:0 0 10px;font-size:13px;color:#6b7280;line-height:1.5;">${safeHookLine}</p>
+              <p style="margin:0 0 0;font-size:13px;color:#9ca3af;">${safeEffortLine}</p>
+              ${safePersonalizationLine ? `<p style="margin:10px 0 0;font-size:13px;color:#6b7280;">${safePersonalizationLine}</p>` : ''}
 
               <hr style="margin:24px 0;border:none;border-top:1px solid #f3f4f6;" />
 
@@ -386,20 +445,14 @@ function buildNoUsageHtml({ parentName, childNames, localDate, timezone, simpleP
           <tr>
             <td style="padding:28px 28px 24px;">
               <p style="margin:0 0 6px;font-size:15px;color:#6b7280;">Hi ${safeParentName},</p>
-              <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.5;">No Whyroo today — but here's an easy question to try with ${childLabel} tonight.</p>
+              <p style="margin:0 0 18px;font-size:15px;color:#374151;line-height:1.5;">No Whyroo sessions today. Here is one easy question to try with ${childLabel} tonight.</p>
 
-              <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#9ca3af;text-transform:uppercase;">Try this tonight</p>
-              <p style="margin:0 0 20px;font-size:20px;line-height:1.4;color:#111827;font-weight:900;">${safePrompt}</p>
+              <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#9ca3af;text-transform:uppercase;">Try this at dinner tonight</p>
+              <p style="margin:0 0 14px;font-size:20px;line-height:1.4;color:#111827;font-weight:900;">${safePrompt}</p>
 
-              <table cellpadding="0" cellspacing="0" style="margin:0 0 28px;">
-                <tr>
-                  <td style="background:#7c3aed;border-radius:10px;">
-                    <a href="${safeAppLink}" style="display:inline-block;padding:13px 24px;color:#ffffff;font-size:15px;font-weight:900;text-decoration:none;">Open Whyroo →</a>
-                  </td>
-                </tr>
-              </table>
+              <p style="margin:0 0 10px;font-size:13px;color:#6b7280;line-height:1.5;">Most kids think it is guesswork, until they notice the clues and patterns behind it.</p>
 
-              <p style="margin:0 0 24px;font-size:13px;color:#9ca3af;">Takes 2 minutes at dinner, in the car, or before bed.</p>
+              <p style="margin:0 0 24px;font-size:13px;color:#9ca3af;">Takes 2 minutes, at dinner, in the car, or before bed.</p>
 
               <hr style="margin:0 0 24px;border:none;border-top:1px solid #f3f4f6;" />
 
@@ -476,15 +529,23 @@ export async function sendDailySummaryForParent({
     let html;
     if (rows.length > 0) {
       const childSummaries = buildChildSummaries(rows, 3);
+      const topicLabels = getFamilyTopicLabels(rows, 3);
       const activeChildNameSet = new Set(childSummaries.map((entry) => entry.name.toLowerCase()));
       const inactiveChildNames = childProfiles
         .map((profile) => String(profile.name || '').trim())
         .filter(Boolean)
         .filter((name) => !activeChildNameSet.has(name.toLowerCase()));
-      const promptChildName = childSummaries[0]?.name || '';
-      const promptQuestion = childSummaries[0]?.questions?.[0] || '';
-      const prompts = buildDinnerPrompts({ question: promptQuestion, childName: promptChildName });
       const tomorrowBigWhy = pickByDate(TOMORROW_BIG_WHY, localDate, 1);
+      const contextLine = summarizeFamilyContext(topicLabels);
+      const askTonightQuestion = buildSharedDinnerQuestion(topicLabels);
+      const hookLine = buildHookLine();
+      const effortLine = 'Takes 2 minutes, at dinner, in the car, or before bed.';
+      const primaryName = childSummaries[0]?.name || '';
+      const primaryQuestion = childSummaries[0]?.questions?.[0] || '';
+      const primaryTopic = primaryQuestion ? inferTopicLabel(primaryQuestion) : '';
+      const personalizationLine = primaryName && primaryTopic
+        ? `${primaryName} was exploring ${primaryTopic} today.`
+        : '';
 
       html = buildActiveUsageHtml({
         parentName: parentDisplayName || String(parentEmail || '').split('@')[0],
@@ -492,7 +553,11 @@ export async function sendDailySummaryForParent({
         inactiveChildNames,
         localDate,
         timezone: safeTimezone,
-        prompts,
+        contextLine,
+        askTonightQuestion,
+        hookLine,
+        effortLine,
+        personalizationLine,
         tomorrowBigWhy,
       });
     } else {
