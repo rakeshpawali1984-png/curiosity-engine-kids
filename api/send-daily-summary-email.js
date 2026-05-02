@@ -7,17 +7,6 @@ import { logger } from './logger.js';
 const FROM = 'Rakesh from Whyroo <hello@whyroo.com>';
 const APP_BASE_URL = getEnvVar('APP_BASE_URL', 'https://whyroo.com');
 
-const TOMORROW_BIG_WHY = [
-  'Why do we dream?',
-  'Why is the sky blue?',
-  'Why do we yawn when someone else yawns?',
-  'How do rockets go up if gravity pulls them down?',
-  'Why do onions make us cry?',
-  'Why do stars twinkle?',
-  'Why do birds fly in a V shape?',
-  'Why do we get hiccups?',
-];
-
 const NO_USAGE_PROMPTS = [
   'Why do we yawn when someone else yawns?',
   'Why do bubbles always pop?',
@@ -26,6 +15,22 @@ const NO_USAGE_PROMPTS = [
   'Why does popcorn pop?',
   'Why do we get goosebumps?',
   'Why do rainbows appear after rain?',
+  'Why do dogs wag their tails?',
+  'How do birds know where to fly in winter?',
+  'Why do we sneeze?',
+  'Why is the ocean so deep?',
+  'How do spiders make webs?',
+  'Why do leaves fall off trees?',
+  'Why does thunder come after lightning?',
+  'How do fish sleep?',
+  'Why do we get butterflies in our stomach?',
+  'Why do some things sink and some things float?',
+  'How does a rainbow form inside a raindrop?',
+  'Why do we have a belly button?',
+  'Why do our voices sound different in a recording?',
+  'How do bees make honey?',
+  'Why do we have eyebrows?',
+  'Why does hot air rise?',
 ];
 
 function escapeHtml(value) {
@@ -97,7 +102,7 @@ function pickByDate(items, localDate, offset = 0) {
 
 function toSubjectLine(localDate, timezone) {
   const shortDate = formatLocalDateLabel(localDate, timezone);
-  return `Your Whyroo Daily Summary - ${shortDate}`;
+  return `Your Whyroo Daily Summary — ${shortDate}`;
 }
 
 function buildAppLink() {
@@ -142,6 +147,20 @@ function buildParentPortalLink() {
     } catch {
       return 'https://whyroo.com/parent';
     }
+  }
+}
+
+function buildUnsubscribeLink(parentEmail) {
+  const trimmed = String(APP_BASE_URL || '').trim();
+  const base = trimmed ? trimmed : 'https://whyroo.com';
+  try {
+    const url = new URL('/parent', base);
+    url.searchParams.set('tab', 'digest');
+    url.searchParams.set('action', 'unsubscribe');
+    if (parentEmail) url.searchParams.set('email', parentEmail);
+    return url.toString();
+  } catch {
+    return 'https://whyroo.com/parent?tab=digest&action=unsubscribe';
   }
 }
 
@@ -226,40 +245,80 @@ function extractTopicHint(question) {
   return tail.length > 60 ? `${tail.slice(0, 57).trim()}...` : tail;
 }
 
+// Maps raw interest strings (from child_profiles.interests) to digest topic keys.
+const INTEREST_TO_TOPIC = {
+  cricket: 'sports',
+  tennis: 'sports',
+  football: 'sports',
+  swimming: 'sports',
+  basketball: 'sports',
+  dance: null,      // no matching topic pool — skip
+  drawing: null,    // no matching topic pool — skip
+  music: 'music',
+  animals: 'animals',
+  space: 'space',
+  dinosaurs: 'dinosaurs',
+  cooking: 'cooking',
+};
+
+function interestToTopicLabel(interest) {
+  const key = String(interest || '').toLowerCase().trim();
+  return INTEREST_TO_TOPIC[key] ?? null;
+}
+
 function inferTopicLabel(question) {
   const lower = String(question || '').toLowerCase();
   const mappings = [
-    ['dinosaur', 'dinosaurs'],
-    ['cricket', 'sports'],
-    ['tennis', 'sports'],
-    ['football', 'sports'],
-    ['basketball', 'sports'],
-    ['swim', 'sports'],
-    ['star', 'space'],
-    ['moon', 'space'],
-    ['rocket', 'space'],
-    ['ocean', 'nature'],
-    ['animal', 'animals'],
-    ['bird', 'nature'],
-    ['rainbow', 'nature'],
-    ['lightning', 'how things work'],
-    ['dream', 'how things work'],
-    ['yawn', 'how things work'],
-    ['hiccup', 'how things work'],
-    ['onion', 'how things work'],
+    [/\bdinosaur/, 'dinosaurs'],
+    [/\bcricket\b/, 'sports'],
+    [/\btennis\b/, 'sports'],
+    [/\bfootball\b/, 'sports'],
+    [/\bbasketball\b/, 'sports'],
+    [/\bswim/, 'sports'],
+    [/\bstar\b/, 'space'],
+    [/\bmoon\b/, 'space'],
+    [/\brocket\b/, 'space'],
+    [/\bocean\b/, 'nature'],
+    [/\banimal\b/, 'animals'],
+    [/\bbird\b/, 'nature'],
+    [/\brainbow\b/, 'nature'],
+    [/\blightning\b/, 'how things work'],
+    [/\bdream\b/, 'how things work'],
+    [/\byawn\b/, 'how things work'],
+    [/\bhiccup\b/, 'how things work'],
+    [/\bonion\b/, 'how things work'],
   ];
 
-  for (const [keyword, label] of mappings) {
-    if (lower.includes(keyword)) return label;
+  for (const [pattern, label] of mappings) {
+    if (pattern.test(lower)) return label;
   }
 
   return 'how things work';
 }
 
+/**
+ * Build topic labels for the digest.
+ * Priority: child interests selected in profile → keyword inference from queries.
+ * Interests are authoritative — if a child has selected 'space', use that even if
+ * today's questions were about something else.
+ */
 function getFamilyTopicLabels(rows, limit = 3) {
   const labels = [];
   const seen = new Set();
 
+  // 1. Collect unique interests across all active children (order = first child first).
+  for (const row of rows) {
+    const interests = Array.isArray(row.child_interests) ? row.child_interests : [];
+    for (const interest of interests) {
+      const label = interestToTopicLabel(interest);
+      if (!label || seen.has(label)) continue;
+      seen.add(label);
+      labels.push(label);
+      if (labels.length >= limit) return labels;
+    }
+  }
+
+  // 2. Fall back to keyword matching on today's questions to fill remaining slots.
   for (const row of rows) {
     const q = normalizeQuestionText(row?.query_text);
     if (!q) continue;
@@ -267,7 +326,7 @@ function getFamilyTopicLabels(rows, limit = 3) {
     if (!label || seen.has(label)) continue;
     seen.add(label);
     labels.push(label);
-    if (labels.length >= limit) break;
+    if (labels.length >= limit) return labels;
   }
 
   return labels;
@@ -288,43 +347,135 @@ function summarizeFamilyContext(topicLabels) {
   return `Your kids explored ${labels[0]}, ${labels[1]}, and ${labels[2]} today.`;
 }
 
-function buildSharedDinnerQuestion(topicLabels) {
+const DINNER_QUESTIONS = {
+  space: [
+    'If you found out tomorrow that life existed somewhere else in the universe, what would you want to ask them first?',
+    'If you could live on any planet other than Earth, which one would you pick — and what would you have to figure out to survive?',
+    'Do you think space is mostly empty, or mostly full of things we just cannot see yet?',
+    'If you could send one message into space knowing someone might find it in a thousand years, what would you say?',
+    'What do you think is the biggest question about space that nobody has answered yet?',
+  ],
+  sports: [
+    'If you could change one rule in your favourite sport to make it more interesting, what would it be?',
+    'Do you think the best athletes are born that way, or do they become that way? What makes you think so?',
+    'If you had to invent a completely new sport using only things in this room, what would it look like?',
+    'What do you think goes through a player\'s head in the last second of a close game?',
+    'If you were coaching a team that kept losing, what is the one thing you would change first?',
+  ],
+  dinosaurs: [
+    'If dinosaurs had never disappeared, what do you think the world would look like right now?',
+    'Do you think dinosaurs were more like reptiles or more like birds? What makes you think that?',
+    'If you could spend one day in the time of dinosaurs but had to stay safe, what would your plan be?',
+    'What do you think is the most important thing scientists still do not know about dinosaurs?',
+    'If you discovered a brand-new dinosaur fossil, what would you name it and why?',
+  ],
+  nature: [
+    'If you could be any plant or animal for a week, what would you choose — and what do you think you would notice that humans never do?',
+    'What do you think nature does better than any machine humans have ever built?',
+    'If you could ask a tree one question and it could answer, what would you ask?',
+    'What is something in nature that looks simple but is probably much more complicated underneath?',
+    'If humans disappeared tomorrow, what do you think nature would do first?',
+  ],
+  animals: [
+    'If you could understand what one animal was thinking for a day, which would you pick?',
+    'What do you think an animal notices about humans that we never think about?',
+    'If animals had a meeting to talk about the biggest problem on Earth, what do you think they would say?',
+    'What do you think is the cleverest thing any animal does — and why has no human copied it yet?',
+    'If you could give one animal a new superpower, what would it be and why would that animal need it?',
+  ],
+  'how things work': [
+    'Pick something in the room right now. What do you think is actually happening inside it?',
+    'What is one thing that works every day but you have never stopped to wonder how?',
+    'If you had to build the thing you thought about today from scratch, where would you even start?',
+    'What do you think would happen if we took away one thing everyone relies on and nobody noticed it was gone?',
+    'What is something that seems like magic until you understand how it works — and then seems even more amazing?',
+  ],
+  cooking: [
+    'If you could only eat food from one country for the rest of your life, which would you pick and why?',
+    'What do you think is the hardest part of cooking that nobody talks about?',
+    'If you could invent a brand-new flavour that does not exist yet, what would it taste like?',
+    'What do you think changes inside food when you cook it? What is actually happening in there?',
+    'If you had to cook a meal that told a story, what story would you tell and what would you make?',
+  ],
+  music: [
+    'Why do you think a song can make you feel happy one day and sad the next — even if the song has not changed?',
+    'If you could only ever listen to one song again, which would you pick — and what would you miss about everything else?',
+    'If you invented a new instrument, what would it sound like and what feelings would it make people have?',
+    'What do you think music does for people that nothing else can?',
+    'If you could turn one emotion into a piece of music, which emotion would you pick and what would it sound like?',
+  ],
+};
+
+const DINNER_QUESTIONS_FALLBACK = [
+  'What is the most interesting thing you thought about today — even if you cannot fully explain it yet?',
+  'If you could know the answer to one question in the world right now, what would you ask?',
+  'What is something that everyone around you seems to accept, but you are not sure you believe?',
+  'What is one thing that happened today that made you want to know more?',
+  'If you could go back and change one decision from today, what would it be and why?',
+];
+
+function buildSharedDinnerQuestion(topicLabels, localDate) {
   const labels = Array.isArray(topicLabels) ? topicLabels : [];
   const primary = labels[0] || '';
 
-  if (labels.includes('space') && labels.includes('how things work')) {
-    return 'What surprised you most about space today, and what clue helped you understand it?';
-  }
-
-  if (labels.includes('sports') && labels.includes('how things work')) {
-    return 'What surprised you most in sport today, and what clue helped you understand it?';
-  }
-
-  if (primary === 'space') {
-    return 'What surprised you most about space today, and what clue helped you understand it?';
-  }
-
-  if (primary === 'sports') {
-    return 'What surprised you most in sport today, and what clue helped you understand it?';
-  }
-
-  if (primary === 'dinosaurs') {
-    return 'What surprised you most about dinosaurs today, and what clue helped you understand it?';
-  }
-
-  if (primary === 'nature' || primary === 'animals') {
-    return 'What surprised you most about nature today, and what clue helped you understand it?';
-  }
-
-  if (primary === 'how things work') {
-    return 'What did you learn today that made you say, "Oh, that makes sense now"?';
-  }
-
-  return 'What surprised you most today, and what clue helped you understand it?';
+  const pool = DINNER_QUESTIONS[primary] || DINNER_QUESTIONS_FALLBACK;
+  return pickByDate(pool, localDate);
 }
 
-function buildHookLine() {
-  return "Most kids think it is guesswork, until they notice the clues and patterns behind it.";
+const HOOK_LINES = {
+  space: [
+    'Most kids think space is just darkness and distance — until they find the patterns hiding in it.',
+    'Space seems impossibly big, until you realise everything in it follows the same simple rules.',
+    'The further you look into space, the further back in time you see.',
+  ],
+  sports: [
+    'Most kids think sport is all about strength — until they see how much of it is pattern recognition.',
+    'The best athletes are not just fast. They have learned to see what others miss.',
+    'Sport looks simple from the outside, until you notice how many tiny decisions happen every second.',
+  ],
+  dinosaurs: [
+    'Dinosaurs were not slow and clumsy — scientists now think many of them were fast, warm-blooded, and clever.',
+    'Most of what we know about dinosaurs comes from clues smaller than your fingernail.',
+    'Dinosaurs did not really disappear — the birds outside your window are their descendants.',
+  ],
+  nature: [
+    'Most of what keeps nature running is completely invisible — until you know what to look for.',
+    'Every plant and animal alive today has been solving the same problems for millions of years.',
+    'Nature has no waste. Everything becomes something else.',
+  ],
+  animals: [
+    'Animals solve problems most humans have not even thought about yet.',
+    'The cleverest animal behaviour often looks completely random — until you see the pattern.',
+    'Most animals communicate in ways we are only just starting to understand.',
+  ],
+  'how things work': [
+    'Most kids think understanding everyday things is guesswork, until they start noticing the patterns.',
+    'Once you understand how one system works, you start seeing the same pattern everywhere.',
+    'The most surprising part of how the world works is usually the part nobody thought to question.',
+  ],
+  cooking: [
+    'Cooking is just chemistry — heat, time, and the right ingredients in the right order.',
+    'Every great recipe is a solved problem that someone spent years figuring out.',
+    'The difference between a good meal and a great one is usually one tiny detail.',
+  ],
+  music: [
+    'Music is mathematics your brain has learned to feel.',
+    'Every great song follows rules — the trick is knowing exactly when to break them.',
+    'Most of what makes music powerful happens in the silences between the notes.',
+  ],
+};
+
+const HOOK_LINES_FALLBACK = [
+  'Most kids think understanding the world is guesswork, until they start noticing the patterns.',
+  'The best questions are the ones that make you realise how much there is still to find out.',
+  'Curiosity does not need a reason. The reason shows up once you start looking.',
+];
+
+function buildHookLine(topicLabels, localDate) {
+  const labels = Array.isArray(topicLabels) ? topicLabels : [];
+  const primary = labels[0] || '';
+  const pool = HOOK_LINES[primary] || HOOK_LINES_FALLBACK;
+  return pickByDate(pool, localDate, 2);
 }
 
 function buildCommonHeader(localDate, timezone) {
@@ -370,15 +521,15 @@ function buildCommonLayout(bodyHtml, localDate, timezone) {
 </html>`;
 }
 
-function buildActiveUsageHtml({ parentName, childSummaries, inactiveChildNames, localDate, timezone, contextLine, askTonightQuestion, hookLine, effortLine, personalizationLine, tomorrowBigWhy }) {
+function buildActiveUsageHtml({ parentName, parentEmail, childSummaries, inactiveChildNames, localDate, timezone, contextLine, askTonightQuestion, hookLine, effortLine, personalizationLine }) {
   const safeParentName = escapeHtml(parentName || 'Parent');
   const safeContextLine = escapeHtml(contextLine || 'Your kids explored great questions today.');
   const safeAskTonightQuestion = escapeHtml(askTonightQuestion || 'What surprised you most about what you learned today?');
   const safeHookLine = escapeHtml(hookLine || 'Most kids think it is guesswork, until they spot the patterns behind it.');
   const safeEffortLine = escapeHtml(effortLine || 'Takes 2 minutes, at dinner, in the car, or before bed.');
   const safePersonalizationLine = escapeHtml(personalizationLine || '');
-  const safeTomorrowBigWhy = escapeHtml(tomorrowBigWhy || 'Why do we dream?');
   const safeParentPortalLink = escapeHtml(buildParentPortalLink());
+  const safeUnsubscribeLink = escapeHtml(buildUnsubscribeLink(parentEmail));
 
   // Build questions grouped by child
   const questionLines = childSummaries.length > 1
@@ -409,7 +560,7 @@ function buildActiveUsageHtml({ parentName, childSummaries, inactiveChildNames, 
               <p style="margin:0 0 6px;font-size:15px;color:#6b7280;">Hi ${safeParentName},</p>
               <p style="margin:0 0 18px;font-size:15px;color:#374151;line-height:1.5;">${safeContextLine}</p>
 
-              <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#9ca3af;text-transform:uppercase;">Try this at dinner tonight</p>
+              <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#9ca3af;text-transform:uppercase;">Your conversation starter today</p>
               <p style="margin:0 0 14px;font-size:19px;line-height:1.4;color:#111827;font-weight:900;">${safeAskTonightQuestion}</p>
 
               <p style="margin:0 0 10px;font-size:13px;color:#6b7280;line-height:1.5;">${safeHookLine}</p>
@@ -422,44 +573,35 @@ function buildActiveUsageHtml({ parentName, childSummaries, inactiveChildNames, 
               ${questionLines}
               ${inactiveLine}
 
-              <hr style="margin:24px 0;border:none;border-top:1px solid #f3f4f6;" />
-
-              <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#9ca3af;text-transform:uppercase;">Tomorrow's 2-minute starter</p>
-              <p style="margin:0 0 20px;font-size:16px;font-weight:800;color:#374151;">${safeTomorrowBigWhy}</p>
-
-              <p style="margin:0;font-size:12px;color:#9ca3af;">Change digest preferences in <a href="${safeParentPortalLink}" style="color:#7c3aed;text-decoration:none;">Parent Portal</a>.</p>
+              <p style="margin:0;font-size:12px;color:#9ca3af;">Change digest preferences in <a href="${safeParentPortalLink}" style="color:#7c3aed;text-decoration:none;">Parent Portal</a> &middot; <a href="${safeUnsubscribeLink}" style="color:#9ca3af;text-decoration:underline;">Unsubscribe</a></p>
             </td>
           </tr>`;
 
   return buildCommonLayout(bodyHtml, localDate, timezone);
 }
 
-function buildNoUsageHtml({ parentName, childNames, localDate, timezone, simplePrompt, appLink }) {
+function buildNoUsageHtml({ parentName, parentEmail, childNames, localDate, timezone, simplePrompt, appLink }) {
   const safeParentName = escapeHtml(parentName || 'Parent');
   const safePrompt = escapeHtml(simplePrompt || 'Why do we yawn when someone else yawns?');
   const safeAppLink = escapeHtml(appLink || 'https://whyroo.com/app');
   const safeParentPortalLink = escapeHtml(buildParentPortalLink());
+  const safeUnsubscribeLink = escapeHtml(buildUnsubscribeLink(parentEmail));
   const childLabel = childNames.length > 0 ? childNames.map((name) => escapeHtml(name)).join(', ') : 'your child';
 
   const bodyHtml = `
           <tr>
             <td style="padding:28px 28px 24px;">
               <p style="margin:0 0 6px;font-size:15px;color:#6b7280;">Hi ${safeParentName},</p>
-              <p style="margin:0 0 18px;font-size:15px;color:#374151;line-height:1.5;">No Whyroo sessions today. Here is one easy question to try with ${childLabel} tonight.</p>
+              <p style="margin:0 0 18px;font-size:15px;color:#374151;line-height:1.5;">No Whyroo sessions today. Here is a question to explore together with ${childLabel}.</p>
 
-              <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#9ca3af;text-transform:uppercase;">Try this at dinner tonight</p>
+              <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#9ca3af;text-transform:uppercase;">Your conversation starter today</p>
               <p style="margin:0 0 14px;font-size:20px;line-height:1.4;color:#111827;font-weight:900;">${safePrompt}</p>
 
-              <p style="margin:0 0 10px;font-size:13px;color:#6b7280;line-height:1.5;">Most kids think it is guesswork, until they notice the clues and patterns behind it.</p>
+              <p style="margin:0 0 10px;font-size:13px;color:#6b7280;line-height:1.5;">Most kids think understanding the world is guesswork, until they start noticing the patterns.</p>
 
               <p style="margin:0 0 24px;font-size:13px;color:#9ca3af;">Takes 2 minutes, at dinner, in the car, or before bed.</p>
 
-              <hr style="margin:0 0 24px;border:none;border-top:1px solid #f3f4f6;" />
-
-              <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#9ca3af;text-transform:uppercase;">Tomorrow's 2-minute starter</p>
-              <p style="margin:0 0 24px;font-size:16px;font-weight:800;color:#374151;">${escapeHtml(pickByDate(TOMORROW_BIG_WHY, localDate, 1))}</p>
-
-              <p style="margin:0;font-size:12px;color:#9ca3af;">Change digest preferences in <a href="${safeParentPortalLink}" style="color:#7c3aed;text-decoration:none;">Parent Portal</a>.</p>
+              <p style="margin:0;font-size:12px;color:#9ca3af;">Change digest preferences in <a href="${safeParentPortalLink}" style="color:#7c3aed;text-decoration:none;">Parent Portal</a> &middot; <a href="${safeUnsubscribeLink}" style="color:#9ca3af;text-decoration:underline;">Unsubscribe</a></p>
             </td>
           </tr>`;
 
@@ -498,7 +640,7 @@ export async function sendDailySummaryForParent({
 
     const profilesRes = await client.query(
       `
-        select id, name
+        select id, name, coalesce(interests, '{}') as interests
         from public.child_profiles
         where parent_id = $1
         order by created_at asc
@@ -513,7 +655,8 @@ export async function sendDailySummaryForParent({
           cs.query_text,
           cs.created_at,
           cp.id as child_id,
-          cp.name as child_name
+          cp.name as child_name,
+          coalesce(cp.interests, '{}') as child_interests
         from public.child_searches cs
         join public.child_profiles cp on cp.id = cs.child_id
         where cp.parent_id = $1
@@ -529,16 +672,15 @@ export async function sendDailySummaryForParent({
     let html;
     if (rows.length > 0) {
       const childSummaries = buildChildSummaries(rows, 3);
-      const topicLabels = getFamilyTopicLabels(rows, 3);
+      const topicLabels = getFamilyTopicLabels(rows, 3); // uses child interests first
       const activeChildNameSet = new Set(childSummaries.map((entry) => entry.name.toLowerCase()));
       const inactiveChildNames = childProfiles
         .map((profile) => String(profile.name || '').trim())
         .filter(Boolean)
         .filter((name) => !activeChildNameSet.has(name.toLowerCase()));
-      const tomorrowBigWhy = pickByDate(TOMORROW_BIG_WHY, localDate, 1);
       const contextLine = summarizeFamilyContext(topicLabels);
-      const askTonightQuestion = buildSharedDinnerQuestion(topicLabels);
-      const hookLine = buildHookLine();
+      const askTonightQuestion = buildSharedDinnerQuestion(topicLabels, localDate);
+      const hookLine = buildHookLine(topicLabels, localDate);
       const effortLine = 'Takes 2 minutes, at dinner, in the car, or before bed.';
       const primaryName = childSummaries[0]?.name || '';
       const primaryQuestion = childSummaries[0]?.questions?.[0] || '';
@@ -549,6 +691,7 @@ export async function sendDailySummaryForParent({
 
       html = buildActiveUsageHtml({
         parentName: parentDisplayName || String(parentEmail || '').split('@')[0],
+        parentEmail,
         childSummaries,
         inactiveChildNames,
         localDate,
@@ -558,15 +701,26 @@ export async function sendDailySummaryForParent({
         hookLine,
         effortLine,
         personalizationLine,
-        tomorrowBigWhy,
       });
     } else {
       const profileNames = Array.from(new Set(childProfiles.map((row) => row.name).filter(Boolean)));
-      const prompt = pickByDate(NO_USAGE_PROMPTS, localDate);
+      // Derive topic labels from child profile interests (no sessions today)
+      const profileRows = childProfiles.flatMap((p) =>
+        (Array.isArray(p.interests) && p.interests.length > 0)
+          ? [{ child_interests: p.interests, query_text: null }]
+          : []
+      );
+      const noUsageTopicLabels = getFamilyTopicLabels(profileRows, 1);
+      const primaryTopic = noUsageTopicLabels[0] || '';
+      // Use interest-matched dinner question if available, else fall back to generic prompt
+      const prompt = primaryTopic && DINNER_QUESTIONS[primaryTopic]
+        ? pickByDate(DINNER_QUESTIONS[primaryTopic], localDate)
+        : pickByDate(NO_USAGE_PROMPTS, localDate);
       const appLink = buildAppLink();
 
       html = buildNoUsageHtml({
         parentName: parentDisplayName || String(parentEmail || '').split('@')[0],
+        parentEmail,
         childNames: profileNames,
         localDate,
         timezone: safeTimezone,
